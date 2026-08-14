@@ -11,7 +11,7 @@ datasource db {
 }
 
 enum Role {
-  SIMPLE
+  PERSONAL
   BUSINESS
 }
 
@@ -39,7 +39,7 @@ model User {
   name          String
   email         String    @unique
   password      String
-  role          Role      @default(SIMPLE)
+  role          Role      @default(PERSONAL)
   phone         String?
   emailVerified DateTime?
   image         String?
@@ -107,6 +107,7 @@ model Field {
   images      String[]
   amenities   String[]
   isActive    Boolean   @default(true)
+  contactPhone String?
 
   openingHour Int @default(8)
   closingHour Int @default(23)

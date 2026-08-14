@@ -1,0 +1,259 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { ChevronLeft, ChevronRight, CalendarDays, Clock3 } from "lucide-react";
+
+import { StatusBadge } from "@/components/dashboard/status-badge";
+import { RescheduleDialog } from "@/components/dashboard/reschedule-dialog";
+import type { BookingStatus } from "@prisma/client";
+
+const START_HOUR = 8;
+const END_HOUR = 23;
+const HOUR_HEIGHT = 56;
+const HOURS = Array.from({ length: END_HOUR - START_HOUR }, (_, i) => START_HOUR + i);
+
+const BLOCK_BG: Record<string, string> = {
+  CONFIRMED: "bg-emerald-50 dark:bg-emerald-500/10",
+  PENDING: "bg-amber-50 dark:bg-amber-500/10",
+  REJECTED: "bg-rose-50 dark:bg-rose-500/10",
+  RESCHEDULE_PROPOSED: "bg-blue-50 dark:bg-blue-500/10",
+  CANCELLED: "bg-muted",
+};
+const BLOCK_BORDER: Record<string, string> = {
+  CONFIRMED: "border-emerald-500",
+  PENDING: "border-amber-500",
+  REJECTED: "border-rose-500",
+  RESCHEDULE_PROPOSED: "border-blue-500",
+  CANCELLED: "border-muted-foreground",
+};
+const BLOCK_FG: Record<string, string> = {
+  CONFIRMED: "text-emerald-700 dark:text-emerald-400",
+  PENDING: "text-amber-700 dark:text-amber-400",
+  REJECTED: "text-rose-700 dark:text-rose-400",
+  RESCHEDULE_PROPOSED: "text-blue-700 dark:text-blue-400",
+  CANCELLED: "text-muted-foreground",
+};
+
+type Booking = {
+  id: string;
+  status: BookingStatus;
+  startTime: Date;
+  endTime: Date;
+  totalPrice: number;
+  customer: { name: string };
+  field: { id: string; name: string };
+};
+
+function hourOf(d: Date) {
+  return d.getHours() + d.getMinutes() / 60;
+}
+function isoDate(d: Date) {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).toDateString();
+}
+function fmtHour(h: number) {
+  const hour = Math.floor(h);
+  const min = Math.round((h - hour) * 60);
+  return `${String(hour).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
+}
+function toTimeInput(d: Date) {
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+function toDateInput(d: Date) {
+  return d.toISOString().slice(0, 10);
+}
+
+export function ScheduleClient({ fields, bookings }: { fields: { id: string; name: string; sportType: string }[]; bookings: Booking[] }) {
+  const [selectedDate, setSelectedDate] = useState(() => new Date());
+  const [selected, setSelected] = useState<Booking | null>(null);
+  const [rescheduling, setRescheduling] = useState<Booking | null>(null);
+
+  const dayBookings = useMemo(
+    () => bookings.filter((b) => isoDate(b.startTime) === isoDate(selectedDate)),
+    [bookings, selectedDate]
+  );
+
+  const isToday = isoDate(selectedDate) === isoDate(new Date());
+  const weekdayFmt = new Intl.DateTimeFormat("ro-RO", { weekday: "long" });
+  const longDateFmt = new Intl.DateTimeFormat("ro-RO", { day: "numeric", month: "long", year: "numeric" });
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="font-heading text-[20px] font-semibold capitalize">{weekdayFmt.format(selectedDate)}</h1>
+          <p className="text-[13px] text-muted-foreground">{longDateFmt.format(selectedDate)}</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 rounded-lg border bg-background p-1">
+            <button
+              type="button"
+              onClick={() => setSelectedDate((d) => new Date(d.getFullYear(), d.getMonth(), d.getDate() - 1))}
+              className="flex items-center gap-1 rounded-md px-2 py-1.5 text-[12.5px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              <span className="hidden sm:inline">Ziua anterioară</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedDate(new Date())}
+              className={
+                "flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[12.5px] font-medium " +
+                (isToday ? "bg-primary/10 text-primary" : "hover:bg-muted")
+              }
+            >
+              <CalendarDays className="h-3.5 w-3.5" />
+              Azi
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedDate((d) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1))}
+              className="flex items-center gap-1 rounded-md px-2 py-1.5 text-[12.5px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              <span className="hidden sm:inline">Ziua următoare</span>
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {fields.length === 0 ? (
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed py-16 text-center">
+          <p className="text-[13.5px] font-medium">Niciun teren adăugat</p>
+          <p className="mt-1 text-[12.5px] text-muted-foreground">
+            Adaugă un teren din secțiunea „Setări terenuri” pentru a vedea orarul.
+          </p>
+        </div>
+      ) : (
+        <div className="overflow-x-auto rounded-2xl border bg-background shadow-sm">
+          <div style={{ minWidth: 120 + fields.length * 180 }}>
+            <div className="grid border-b" style={{ gridTemplateColumns: `56px repeat(${fields.length}, 1fr)` }}>
+              <div />
+              {fields.map((f) => (
+                <div key={f.id} className="border-l px-3 py-3">
+                  <p className="truncate text-[12px] font-semibold">{f.name}</p>
+                  <p className="truncate text-[10.5px] text-muted-foreground">{f.sportType}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="relative grid" style={{ gridTemplateColumns: `56px repeat(${fields.length}, 1fr)` }}>
+              <div className="relative">
+                {HOURS.map((h) => (
+                  <div key={h} style={{ height: HOUR_HEIGHT }} className="flex items-start justify-end border-b pr-2">
+                    <span className="-mt-2 font-mono text-[10.5px] text-muted-foreground tabular-nums">
+                      {String(h).padStart(2, "0")}:00
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              {fields.map((field) => (
+                <div key={field.id} className="relative border-l">
+                  {HOURS.map((h) => (
+                    <div key={h} style={{ height: HOUR_HEIGHT }} className="border-b" />
+                  ))}
+                  <AnimatePresence>
+                    {dayBookings
+                      .filter((b) => b.field.id === field.id)
+                      .map((b) => {
+                        const start = hourOf(b.startTime);
+                        const end = hourOf(b.endTime);
+                        const top = (start - START_HOUR) * HOUR_HEIGHT;
+                        const height = Math.max((end - start) * HOUR_HEIGHT - 4, 30);
+                        return (
+                          <motion.button
+                            key={b.id}
+                            type="button"
+                            layout
+                            onClick={() => setSelected(b)}
+                            initial={{ opacity: 0, scale: 0.94 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            whileHover={{ scale: 1.015 }}
+                            style={{ top, height }}
+                            className={`absolute inset-x-1 z-10 flex flex-col items-start overflow-hidden rounded-lg border-l-[3px] px-2 py-1.5 text-left shadow-sm ${BLOCK_BG[b.status]} ${BLOCK_BORDER[b.status]} ${BLOCK_FG[b.status]}`}
+                          >
+                            <span className="truncate text-[11.5px] font-semibold leading-tight">{b.customer.name}</span>
+                            <span className="mt-auto truncate font-mono text-[10.5px] leading-tight opacity-80 tabular-nums">
+                              {fmtHour(start)}–{fmtHour(end)}
+                            </span>
+                          </motion.button>
+                        );
+                      })}
+                  </AnimatePresence>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {dayBookings.length === 0 && fields.length > 0 && (
+        <p className="text-center text-[12.5px] text-muted-foreground">Nicio rezervare în această zi.</p>
+      )}
+
+      <AnimatePresence>
+        {selected && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setSelected(null)}
+            className="fixed inset-0 z-40 flex items-end justify-center bg-black/30 p-4 sm:items-center"
+          >
+            <motion.div
+              initial={{ opacity: 0, y: 24, scale: 0.97 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 12, scale: 0.98 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-sm rounded-2xl border bg-background p-5 shadow-xl"
+            >
+              <StatusBadge status={selected.status} />
+              <h4 className="mt-2 font-heading text-[17px] font-semibold">{selected.field.name}</h4>
+              <p className="mt-1 text-[13px] text-muted-foreground">
+                {fmtHour(hourOf(selected.startTime))} – {fmtHour(hourOf(selected.endTime))}
+              </p>
+              <p className="mt-3 text-[13.5px]">
+                Client: <span className="font-medium">{selected.customer.name}</span>
+              </p>
+              <p className="mt-1 font-mono text-[13px] tabular-nums">{selected.totalPrice.toFixed(0)} RON</p>
+              <div className="mt-5 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSelected(null)}
+                  className="flex-1 rounded-lg border px-3 py-2 text-[13px] font-medium hover:bg-muted"
+                >
+                  Închide
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRescheduling(selected);
+                    setSelected(null);
+                  }}
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-[13px] font-medium text-primary-foreground hover:opacity-90"
+                >
+                  <Clock3 className="h-3.5 w-3.5" />
+                  Mută rezervarea
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {rescheduling && (
+        <RescheduleDialog
+          bookingId={rescheduling.id}
+          clientName={rescheduling.customer.name}
+          fieldName={rescheduling.field.name}
+          defaultDate={toDateInput(rescheduling.startTime)}
+          defaultStart={toTimeInput(rescheduling.startTime)}
+          defaultEnd={toTimeInput(rescheduling.endTime)}
+          open={!!rescheduling}
+          onOpenChange={(open) => !open && setRescheduling(null)}
+        />
+      )}
+    </div>
+  );
+}
