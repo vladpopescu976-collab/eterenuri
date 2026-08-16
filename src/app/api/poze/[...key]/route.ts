@@ -42,7 +42,21 @@ export async function GET(
         ...(object.ContentLength ? { "Content-Length": String(object.ContentLength) } : {}),
       },
     });
-  } catch {
-    return NextResponse.json({ error: "Poza nu a fost găsită." }, { status: 404 });
+  } catch (error) {
+    // Distingem "poza chiar lipseste" de o problema de configurare
+    // (chei gresite, alt bucket), altfel orice eroare arata ca un 404 si
+    // nu se poate diagnostica din exterior.
+    const name = error instanceof Error ? error.name : "UnknownError";
+    const lipsesteObiectul = name === "NoSuchKey" || name === "NotFound";
+
+    if (lipsesteObiectul) {
+      return NextResponse.json({ error: "Poza nu a fost găsită." }, { status: 404 });
+    }
+
+    console.error("Eroare la citirea pozei din bucket:", name, error);
+    return NextResponse.json(
+      { error: "Storage-ul nu a putut fi accesat.", cauza: name },
+      { status: 502 }
+    );
   }
 }
