@@ -6,7 +6,7 @@ import { z } from "zod";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { ActionError, fail, ok, toActionError, type ActionResult } from "@/lib/actions/result";
-import { fieldSchema, fieldUpdateSchema } from "@/lib/validations/field";
+import { fieldEditSchema, fieldSchema, fieldUpdateSchema } from "@/lib/validations/field";
 
 async function requireBusinessSession() {
   const session = await auth();
@@ -58,11 +58,14 @@ export async function rejectBooking(bookingId: string): Promise<ActionResult> {
   }
 }
 
+// Orele vin ca momente ISO complete, calculate în browser (vezi
+// src/lib/datetime.ts). Serverul nu mai reconstruiește ora din „dată + oră”,
+// pentru că o făcea în fusul lui — pe Vercel, UTC — și muta propunerea cu
+// câteva ore față de ce alesese proprietarul.
 const rescheduleSchema = z.object({
   bookingId: z.string().min(1),
-  date: z.string().min(1, "Alege o dată."),
-  startTime: z.string().min(1, "Alege ora de start."),
-  endTime: z.string().min(1, "Alege ora de sfârșit."),
+  startTime: z.iso.datetime({ message: "Ora de start nu este validă." }),
+  endTime: z.iso.datetime({ message: "Ora de sfârșit nu este validă." }),
   note: z.string().optional(),
 });
 
@@ -74,11 +77,8 @@ export async function proposeReschedule(
     const data = rescheduleSchema.parse(input);
     const booking = await assertOwnsBooking(data.bookingId, session.user.id);
 
-    const proposedStartTime = new Date(`${data.date}T${data.startTime}:00`);
-    const proposedEndTime = new Date(`${data.date}T${data.endTime}:00`);
-    if (Number.isNaN(proposedStartTime.getTime()) || Number.isNaN(proposedEndTime.getTime())) {
-      return fail("Data sau ora aleasă nu este validă.");
-    }
+    const proposedStartTime = new Date(data.startTime);
+    const proposedEndTime = new Date(data.endTime);
     if (proposedEndTime <= proposedStartTime) {
       return fail("Ora de sfârșit trebuie să fie după ora de start.");
     }
@@ -146,6 +146,42 @@ export async function updateField(
     return ok();
   } catch (error) {
     return toActionError("updateField", error);
+  }
+}
+
+// Editare completă a unui teren deja publicat: nume, sport, adresă, preț,
+// program, telefon, descriere, facilități și poze.
+export async function updateFieldDetails(
+  input: z.input<typeof fieldEditSchema>
+): Promise<ActionResult> {
+  try {
+    const session = await requireBusinessSession();
+    const data = fieldEditSchema.parse(input);
+
+    const existing = await prisma.field.findUnique({ where: { id: data.fieldId } });
+    if (!existing || existing.ownerId !== session.user.id) {
+      return fail("Terenul nu a fost găsit.");
+    }
+
+    const { fieldId, description, amenities, images, ...rest } = data;
+    await prisma.field.update({
+      where: { id: fieldId },
+      data: {
+        ...rest,
+        description: description || null,
+        amenities: amenities ?? [],
+        images: images ?? [],
+      },
+    });
+
+    revalidateDashboard();
+    // Pagina publică a terenului trebuie să arate imediat noile informații.
+    revalidatePath(`/terenuri/${fieldId}`);
+    revalidatePath("/");
+    revalidatePath("/cauta-terenuri");
+    return ok();
+  } catch (error) {
+    return toActionError("updateFieldDetails", error);
   }
 }
 

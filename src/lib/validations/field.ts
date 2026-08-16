@@ -24,7 +24,12 @@ export const imageSourceSchema = z
 
 export const MAX_FIELD_IMAGES = 6;
 
-export const fieldSchema = z
+const closingAfterOpening = {
+  message: "Ora de închidere trebuie să fie după ora de deschidere.",
+  path: ["closingHour"],
+};
+
+const fieldBaseSchema = z
   .object({
     name: z.string().trim().min(2, "Numele terenului trebuie să aibă cel puțin 2 caractere."),
     sportType: z.enum([
@@ -62,13 +67,25 @@ export const fieldSchema = z
       .array(imageSourceSchema)
       .max(MAX_FIELD_IMAGES, `Poți adăuga maximum ${MAX_FIELD_IMAGES} poze.`)
       .optional(),
-  })
-  .refine((data) => data.closingHour > data.openingHour, {
-    message: "Ora de închidere trebuie să fie după ora de deschidere.",
-    path: ["closingHour"],
   });
 
+export const fieldSchema = fieldBaseSchema.refine(
+  (data) => data.closingHour > data.openingHour,
+  closingAfterOpening
+);
+
 export type FieldInput = z.infer<typeof fieldSchema>;
+
+// Editarea completă a unui teren deja publicat: aceleași reguli ca la
+// adăugare, plus terenul vizat și starea lui.
+export const fieldEditSchema = fieldBaseSchema
+  .extend({
+    fieldId: z.string().min(1),
+    isActive: z.boolean(),
+  })
+  .refine((data) => data.closingHour > data.openingHour, closingAfterOpening);
+
+export type FieldEditInput = z.infer<typeof fieldEditSchema>;
 
 export const fieldUpdateSchema = z
   .object({

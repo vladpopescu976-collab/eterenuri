@@ -1,9 +1,11 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
-import { MapPin, Clock, Sparkles } from "lucide-react";
+import { MapPin, Clock, Pencil, Sparkles } from "lucide-react";
 
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { BookingForm } from "@/components/booking-form";
 import { FieldImage } from "@/components/field-image";
 import { sportMeta } from "@/lib/sports";
@@ -17,7 +19,15 @@ export default async function FieldDetailPage({ params }: { params: Promise<{ id
   const { id } = await params;
   const [field, session] = await Promise.all([prisma.field.findUnique({ where: { id } }), auth()]);
 
-  if (!field || !field.isActive) {
+  if (!field) {
+    notFound();
+  }
+
+  const isOwner = !!session?.user && session.user.id === field.ownerId;
+
+  // Proprietarul își vede terenul și cât timp e inactiv, ca să îl poată
+  // reactiva sau modifica; pentru ceilalți rămâne ascuns.
+  if (!field.isActive && !isOwner) {
     notFound();
   }
 
@@ -106,6 +116,24 @@ export default async function FieldDetailPage({ params }: { params: Promise<{ id
         </div>
 
         <div className="lg:sticky lg:top-20 lg:h-fit">
+          {isOwner && (
+            <div className="mb-4 rounded-2xl border border-primary/30 bg-primary/5 p-4">
+              <p className="text-[13.5px] font-medium">Acesta este terenul tău</p>
+              <p className="mt-0.5 text-[12.5px] text-muted-foreground">
+                Poți modifica pozele, descrierea, prețul și restul informațiilor.
+              </p>
+              <Button
+                className="mt-3 w-full"
+                size="sm"
+                nativeButton={false}
+                render={<Link href="/dashboard/business/terenuri" />}
+              >
+                <Pencil className="h-3.5 w-3.5" />
+                Modifică terenul
+              </Button>
+            </div>
+          )}
+
           <div className="mb-4 flex items-baseline gap-1">
             <span className="text-2xl font-bold tabular-nums">{Number(field.pricePerHour).toFixed(0)}</span>
             <span className="text-muted-foreground">RON / oră</span>

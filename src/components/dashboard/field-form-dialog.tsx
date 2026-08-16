@@ -3,7 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import Image from "next/image";
 import { toast } from "sonner";
-import { ImagePlus, Link2, Loader2, X } from "lucide-react";
+import { ImagePlus, Link2, Loader2, Star, X } from "lucide-react";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -11,23 +11,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { addField } from "@/lib/actions/business";
+import { addField, updateFieldDetails } from "@/lib/actions/business";
 import { sportOptions } from "@/lib/sports";
-import { MAX_FIELD_IMAGES, fieldSchema } from "@/lib/validations/field";
+import { MAX_FIELD_IMAGES, fieldEditSchema, fieldSchema } from "@/lib/validations/field";
 import type { SportType } from "@prisma/client";
-
-const empty = {
-  name: "",
-  sportType: sportOptions[0].value as SportType,
-  city: "",
-  address: "",
-  price: "",
-  open: "8",
-  close: "22",
-  contactPhone: "",
-  description: "",
-  amenities: "",
-};
 
 const MAX_IMAGES = MAX_FIELD_IMAGES;
 
@@ -49,27 +36,101 @@ function splitList(value: string, separator: RegExp) {
     .filter(Boolean);
 }
 
+export type EditableField = {
+  id: string;
+  name: string;
+  sportType: SportType;
+  city: string;
+  address: string;
+  pricePerHour: number;
+  openingHour: number;
+  closingHour: number;
+  isActive: boolean;
+  contactPhone: string | null;
+  description: string | null;
+  amenities: string[];
+  images: string[];
+};
+
+type FormState = {
+  name: string;
+  sportType: SportType;
+  city: string;
+  address: string;
+  price: string;
+  open: string;
+  close: string;
+  contactPhone: string;
+  description: string;
+  amenities: string;
+  isActive: boolean;
+};
+
+const emptyForm: FormState = {
+  name: "",
+  sportType: sportOptions[0].value as SportType,
+  city: "",
+  address: "",
+  price: "",
+  open: "8",
+  close: "22",
+  contactPhone: "",
+  description: "",
+  amenities: "",
+  isActive: true,
+};
+
+function formFromField(field: EditableField): FormState {
+  return {
+    name: field.name,
+    sportType: field.sportType,
+    city: field.city,
+    address: field.address,
+    price: String(field.pricePerHour),
+    open: String(field.openingHour),
+    close: String(field.closingHour),
+    contactPhone: field.contactPhone ?? "",
+    description: field.description ?? "",
+    amenities: field.amenities.join(", "),
+    isActive: field.isActive,
+  };
+}
+
 type ExistingFieldPhone = { name: string; contactPhone: string };
 
-export function AddFieldDialog({
+export function FieldFormDialog({
   open,
   onOpenChange,
+  field,
   existingPhones = [],
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Lipsește la adăugare; prezent la editarea unui teren deja publicat. */
+  field?: EditableField;
   existingPhones?: ExistingFieldPhone[];
 }) {
-  const [form, setForm] = useState(empty);
+  const isEdit = !!field;
+
+  const [form, setForm] = useState<FormState>(() => (field ? formFromField(field) : emptyForm));
+  const [images, setImages] = useState<string[]>(() => field?.images ?? []);
   const [error, setError] = useState("");
   const [isPending, startTransition] = useTransition();
-
-  const [images, setImages] = useState<string[]>([]);
   const [linkInput, setLinkInput] = useState("");
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  function set<K extends keyof typeof empty>(key: K, value: (typeof empty)[K]) {
+  // Când se deschide alt teren spre editare, formularul trebuie repopulat.
+  const [prevFieldId, setPrevFieldId] = useState(field?.id);
+  if (field?.id !== prevFieldId) {
+    setPrevFieldId(field?.id);
+    setForm(field ? formFromField(field) : emptyForm);
+    setImages(field?.images ?? []);
+    setError("");
+    setLinkInput("");
+  }
+
+  function set<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((f) => ({ ...f, [key]: value }));
   }
 
@@ -141,11 +202,20 @@ export function AddFieldDialog({
     }
   }
 
+  function makeCover(index: number) {
+    setImages((prev) => {
+      if (index <= 0 || index >= prev.length) return prev;
+      const copy = [...prev];
+      const [picked] = copy.splice(index, 1);
+      return [picked, ...copy];
+    });
+  }
+
   function submit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
 
-    const payload = {
+    const common = {
       name: form.name.trim(),
       sportType: form.sportType,
       city: form.city.trim(),
@@ -162,12 +232,33 @@ export function AddFieldDialog({
     // Verificăm cu exact aceleași reguli ca serverul, ca greșelile obișnuite
     // (telefon scris aiurea, oră de închidere mai mică decât cea de
     // deschidere) să apară instant, cu mesajul lor adevărat.
-    const parsed = fieldSchema.safeParse(payload);
+    if (field) {
+      const parsed = fieldEditSchema.safeParse({
+        ...common,
+        fieldId: field.id,
+        isActive: form.isActive,
+      });
+      if (!parsed.success) {
+        setError(parsed.error.issues[0]?.message ?? "Completează corect toate câmpurile obligatorii.");
+        return;
+      }
+      startTransition(async () => {
+        const result = await updateFieldDetails(parsed.data);
+        if (!result.ok) {
+          setError(result.error);
+          return;
+        }
+        toast.success("Modificările au fost salvate.");
+        onOpenChange(false);
+      });
+      return;
+    }
+
+    const parsed = fieldSchema.safeParse(common);
     if (!parsed.success) {
       setError(parsed.error.issues[0]?.message ?? "Completează corect toate câmpurile obligatorii.");
       return;
     }
-
     startTransition(async () => {
       const result = await addField(parsed.data);
       if (!result.ok) {
@@ -175,7 +266,7 @@ export function AddFieldDialog({
         return;
       }
       toast.success("Terenul a fost adăugat.");
-      setForm(empty);
+      setForm(emptyForm);
       setImages([]);
       setLinkInput("");
       onOpenChange(false);
@@ -186,8 +277,12 @@ export function AddFieldDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Adaugă un teren nou</DialogTitle>
-          <DialogDescription>Terenul va apărea imediat în lista ta și va putea primi rezervări.</DialogDescription>
+          <DialogTitle>{isEdit ? "Modifică terenul" : "Adaugă un teren nou"}</DialogTitle>
+          <DialogDescription>
+            {isEdit
+              ? "Modificările apar imediat pe pagina publică a terenului."
+              : "Terenul va apărea imediat în lista ta și va putea primi rezervări."}
+          </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={submit} className="space-y-3">
@@ -370,7 +465,7 @@ export function AddFieldDialog({
               <div className="mt-2 grid grid-cols-3 gap-2">
                 {images.map((src, index) => (
                   <div
-                    key={src}
+                    key={`${src}-${index}`}
                     className="group relative aspect-square overflow-hidden rounded-lg border bg-muted"
                   >
                     <Image
@@ -381,10 +476,20 @@ export function AddFieldDialog({
                       className="object-cover"
                       unoptimized
                     />
-                    {index === 0 && (
+                    {index === 0 ? (
                       <span className="absolute left-1 top-1 rounded bg-black/70 px-1.5 py-0.5 text-[10px] font-medium text-white">
                         Principală
                       </span>
+                    ) : (
+                      <button
+                        type="button"
+                        title="Fă principală"
+                        aria-label={`Fă poza ${index + 1} principală`}
+                        onClick={() => makeCover(index)}
+                        className="absolute left-1 top-1 rounded-full bg-black/70 p-1 text-white opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+                      >
+                        <Star className="h-3 w-3" />
+                      </button>
                     )}
                     <button
                       type="button"
@@ -448,6 +553,23 @@ export function AddFieldDialog({
             </p>
           </div>
 
+          {isEdit && (
+            <label className="flex cursor-pointer items-center justify-between rounded-lg border px-3 py-2.5">
+              <span>
+                <span className="block text-[13px] font-medium">Teren activ</span>
+                <span className="block text-[11.5px] text-muted-foreground">
+                  Terenurile inactive nu apar în căutare și nu pot primi rezervări.
+                </span>
+              </span>
+              <input
+                type="checkbox"
+                checked={form.isActive}
+                onChange={(e) => set("isActive", e.target.checked)}
+                className="h-4 w-4 shrink-0 accent-[var(--primary)]"
+              />
+            </label>
+          )}
+
           {error && <p className="text-[12.5px] text-destructive">{error}</p>}
 
           <div className="flex gap-2 pt-1">
@@ -455,7 +577,13 @@ export function AddFieldDialog({
               Anulează
             </Button>
             <Button type="submit" className="flex-1" disabled={isPending}>
-              {isPending ? "Se adaugă…" : "Adaugă terenul"}
+              {isPending
+                ? isEdit
+                  ? "Se salvează…"
+                  : "Se adaugă…"
+                : isEdit
+                  ? "Salvează modificările"
+                  : "Adaugă terenul"}
             </Button>
           </div>
         </form>

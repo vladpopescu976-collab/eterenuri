@@ -2,31 +2,28 @@
 
 import { useState, useTransition } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Save, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { ExternalLink, Pencil, Plus, Save, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Input } from "@/components/ui/input";
-import { AddFieldDialog } from "@/components/dashboard/add-field-dialog";
+import { FieldFormDialog, type EditableField } from "@/components/dashboard/field-form-dialog";
 import { updateField, removeField } from "@/lib/actions/business";
 import { sportMeta } from "@/lib/sports";
-import type { SportType } from "@prisma/client";
 
-type Field = {
-  id: string;
-  name: string;
-  sportType: SportType;
-  city: string;
-  pricePerHour: number;
-  openingHour: number;
-  closingHour: number;
-  isActive: boolean;
-  contactPhone: string | null;
-};
+type Field = EditableField;
 
-function FieldCard({ field }: { field: Field }) {
+function FieldCard({
+  field,
+  existingPhones,
+}: {
+  field: Field;
+  existingPhones: { name: string; contactPhone: string }[];
+}) {
   const [draft, setDraft] = useState(field);
   const [prevField, setPrevField] = useState(field);
   const [saved, setSaved] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   if (field !== prevField) {
@@ -90,6 +87,23 @@ function FieldCard({ field }: { field: Field }) {
             <p className="text-[12.5px] text-muted-foreground">
               {sportMeta[draft.sportType].label} · {draft.city}
             </p>
+            <div className="mt-1.5 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setEditOpen(true)}
+                className="flex items-center gap-1 rounded-lg border px-2 py-1 text-[11.5px] font-medium transition-colors hover:border-primary hover:text-primary"
+              >
+                <Pencil className="h-3 w-3" />
+                Modifică
+              </button>
+              <Link
+                href={`/terenuri/${field.id}`}
+                className="flex items-center gap-1 text-[11.5px] text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <ExternalLink className="h-3 w-3" />
+                Vezi pagina publică
+              </Link>
+            </div>
           </div>
         </div>
 
@@ -188,6 +202,13 @@ function FieldCard({ field }: { field: Field }) {
           </button>
         </div>
       </div>
+
+      <FieldFormDialog
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        field={field}
+        existingPhones={existingPhones}
+      />
     </motion.div>
   );
 }
@@ -226,13 +247,13 @@ export function FieldSettingsClient({ fields }: { fields: Field[] }) {
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
           <AnimatePresence>
             {fields.map((field) => (
-              <FieldCard key={field.id} field={field} />
+              <FieldCard key={field.id} field={field} existingPhones={existingPhones} />
             ))}
           </AnimatePresence>
         </div>
       )}
 
-      <AddFieldDialog open={addOpen} onOpenChange={setAddOpen} existingPhones={existingPhones} />
+      <FieldFormDialog open={addOpen} onOpenChange={setAddOpen} existingPhones={existingPhones} />
     </div>
   );
 }

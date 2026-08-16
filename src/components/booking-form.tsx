@@ -14,6 +14,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { createBookingRequest } from "@/lib/actions/bookings";
+import { localDateTimeToIso } from "@/lib/datetime";
 
 function hourOptions(openingHour: number, closingHour: number) {
   return Array.from({ length: closingHour - openingHour }, (_, i) => {
@@ -60,12 +61,21 @@ export function BookingForm({
       setError("Alege data și intervalul orar.");
       return;
     }
+    // Momentul exact e calculat aici, în fusul clientului, nu pe server —
+    // altfel rezervarea ajungea în baza de date cu altă oră decât cea aleasă.
+    const day = format(date, "yyyy-MM-dd");
+    const startTime = localDateTimeToIso(day, start);
+    const endTime = localDateTimeToIso(day, end);
+    if (!startTime || !endTime) {
+      setError("Data sau ora aleasă nu este validă.");
+      return;
+    }
+
     startTransition(async () => {
       const result = await createBookingRequest({
         fieldId,
-        date: format(date, "yyyy-MM-dd"),
-        startTime: start,
-        endTime: end,
+        startTime,
+        endTime,
         notes: notes.trim() || undefined,
       });
       if (!result.ok) {

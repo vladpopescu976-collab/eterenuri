@@ -20,11 +20,15 @@ export default async function BusinessFieldsPage() {
         name: f.name,
         sportType: f.sportType,
         city: f.city,
+        address: f.address,
         pricePerHour: Number(f.pricePerHour),
         openingHour: f.openingHour,
         closingHour: f.closingHour,
         isActive: f.isActive,
         contactPhone: f.contactPhone,
+        description: f.description,
+        amenities: f.amenities,
+        images: f.images,
       }))}
     />
   );

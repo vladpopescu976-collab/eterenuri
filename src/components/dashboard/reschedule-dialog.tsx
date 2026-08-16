@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { proposeReschedule } from "@/lib/actions/business";
+import { localDateTimeToIso } from "@/lib/datetime";
 
 export function RescheduleDialog({
   bookingId,
@@ -36,8 +37,24 @@ export function RescheduleDialog({
 
   function submit() {
     setError("");
+
+    if (!date || !start || !end) {
+      setError("Alege data și intervalul orar.");
+      return;
+    }
+
+    // Momentul exact e calculat aici, în fusul proprietarului, și trimis ca
+    // atare. Înainte trimiteam text („18:00”), iar serverul îl citea în fusul
+    // lui, așa că propunerea pleca cu altă oră decât cea aleasă.
+    const startTime = localDateTimeToIso(date, start);
+    const endTime = localDateTimeToIso(date, end);
+    if (!startTime || !endTime) {
+      setError("Data sau ora aleasă nu este validă.");
+      return;
+    }
+
     startTransition(async () => {
-      const result = await proposeReschedule({ bookingId, date, startTime: start, endTime: end });
+      const result = await proposeReschedule({ bookingId, startTime, endTime });
       if (!result.ok) {
         setError(result.error);
         return;

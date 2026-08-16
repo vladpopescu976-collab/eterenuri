@@ -6,6 +6,7 @@ import { ChevronLeft, ChevronRight, CalendarDays, Clock3 } from "lucide-react";
 
 import { StatusBadge } from "@/components/dashboard/status-badge";
 import { RescheduleDialog } from "@/components/dashboard/reschedule-dialog";
+import { toDateInput, toTimeInput } from "@/lib/datetime";
 import type { BookingStatus } from "@prisma/client";
 
 const START_HOUR = 8;
@@ -55,12 +56,6 @@ function fmtHour(h: number) {
   const hour = Math.floor(h);
   const min = Math.round((h - hour) * 60);
   return `${String(hour).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
-}
-function toTimeInput(d: Date) {
-  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-}
-function toDateInput(d: Date) {
-  return d.toISOString().slice(0, 10);
 }
 
 export function ScheduleClient({ fields, bookings }: { fields: { id: string; name: string; sportType: string }[]; bookings: Booking[] }) {

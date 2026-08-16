@@ -10,6 +10,7 @@ import { StatusBadge } from "@/components/dashboard/status-badge";
 import { RescheduleDialog } from "@/components/dashboard/reschedule-dialog";
 import { approveBooking, rejectBooking } from "@/lib/actions/business";
 import { bookingStatusLabel } from "@/lib/status";
+import { toDateInput, toTimeInput } from "@/lib/datetime";
 import type { BookingStatus } from "@prisma/client";
 
 type Row = {
@@ -29,12 +30,6 @@ function fmtDate(d: Date) {
 }
 function fmtTime(d: Date) {
   return d.toLocaleTimeString("ro-RO", { hour: "2-digit", minute: "2-digit" });
-}
-function toTimeInput(d: Date) {
-  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-}
-function toDateInput(d: Date) {
-  return d.toISOString().slice(0, 10);
 }
 
 export function BookingsTable({ bookings, fields }: { bookings: Row[]; fields: { id: string; name: string }[] }) {

@@ -15,11 +15,14 @@ async function requireSession() {
   return session;
 }
 
+// Ca și la propunerea de mutare: orele vin ca momente ISO complete, calculate
+// în browser. Serverul le construia din „dată + oră” în fusul lui, iar pe
+// Vercel (UTC) rezervarea ajungea în baza de date cu câteva ore mai târziu
+// decât alesese clientul.
 const createBookingSchema = z.object({
   fieldId: z.string().min(1),
-  date: z.string().min(1, "Alege o dată."),
-  startTime: z.string().min(1, "Alege ora de start."),
-  endTime: z.string().min(1, "Alege ora de sfârșit."),
+  startTime: z.iso.datetime({ message: "Ora de start nu este validă." }),
+  endTime: z.iso.datetime({ message: "Ora de sfârșit nu este validă." }),
   notes: z.string().max(600, "Mesajul nu poate depăși 600 de caractere.").optional(),
 });
 
@@ -35,11 +38,8 @@ export async function createBookingRequest(
       return fail("Terenul nu este disponibil pentru rezervare.");
     }
 
-    const startTime = new Date(`${data.date}T${data.startTime}:00`);
-    const endTime = new Date(`${data.date}T${data.endTime}:00`);
-    if (Number.isNaN(startTime.getTime()) || Number.isNaN(endTime.getTime())) {
-      return fail("Data sau ora aleasă nu este validă.");
-    }
+    const startTime = new Date(data.startTime);
+    const endTime = new Date(data.endTime);
     if (endTime <= startTime) {
       return fail("Ora de sfârșit trebuie să fie după ora de start.");
     }
