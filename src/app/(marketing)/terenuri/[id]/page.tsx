@@ -1,4 +1,3 @@
-import Image from "next/image";
 import { notFound } from "next/navigation";
 import { MapPin, Clock, Sparkles } from "lucide-react";
 
@@ -6,6 +5,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { Badge } from "@/components/ui/badge";
 import { BookingForm } from "@/components/booking-form";
+import { FieldImage } from "@/components/field-image";
 import { sportMeta } from "@/lib/sports";
 
 // Baza Prisma Postgres se suspenda cand e inactiva, iar prima cerere
@@ -31,23 +31,21 @@ export default async function FieldDetailPage({ params }: { params: Promise<{ id
           {field.images.length > 0 ? (
             <div className="grid grid-cols-4 grid-rows-2 gap-2 overflow-hidden rounded-2xl">
               <div className="relative col-span-4 row-span-2 aspect-[16/9] overflow-hidden bg-muted sm:col-span-3">
-                <Image
+                <FieldImage
                   src={field.images[0]}
                   alt={field.name}
-                  fill
                   sizes="(max-width: 640px) 100vw, 60vw"
-                  className="object-cover"
                   priority
+                  fallback={<SportIcon className="h-14 w-14 text-primary/40" strokeWidth={1.5} />}
                 />
               </div>
               {field.images.slice(1, 3).map((src, i) => (
                 <div key={src} className="relative hidden aspect-square overflow-hidden bg-muted sm:block">
-                  <Image
+                  <FieldImage
                     src={src}
                     alt={`${field.name} — poza ${i + 2}`}
-                    fill
                     sizes="20vw"
-                    className="object-cover"
+                    fallback={<SportIcon className="h-6 w-6 text-primary/30" strokeWidth={1.5} />}
                   />
                 </div>
               ))}

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
+import { FieldImage } from "@/components/field-image";
 import { motion } from "framer-motion";
 import { MapPin } from "lucide-react";
 
@@ -38,11 +38,12 @@ export function FieldCard({ field, index = 0 }: { field: FieldCardData; index?: 
       >
         <div className="relative aspect-[4/3] w-full overflow-hidden bg-gradient-to-br from-primary/15 via-muted to-muted">
           {coverImage ? (
-            <Image
+            <FieldImage
               src={coverImage}
               alt={field.name}
-              fill
-              className="object-cover transition-transform duration-500 group-hover:scale-105"
+              sizes="(max-width: 640px) 100vw, 33vw"
+              className="transition-transform duration-500 group-hover:scale-105"
+              fallback={<SportIcon className="h-12 w-12 text-primary/40" strokeWidth={1.5} />}
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center transition-transform duration-500 group-hover:scale-105">

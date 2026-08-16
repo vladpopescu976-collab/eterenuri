@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect } from "react";
+
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
@@ -30,10 +32,19 @@ const copy: Record<Role, { title: string; description: string }> = {
 export function AuthPanel({
   role,
   initialMode,
+  error,
 }: {
   role: Role;
   initialMode: "login" | "register";
+  error?: string;
 }) {
+  // Trezim baza de date cat utilizatorul isi scrie datele. Fara asta, prima
+  // autentificare dupa o pauza astepta ~30-55s pentru pornirea bazei si
+  // parea ca butonul nu face nimic.
+  useEffect(() => {
+    fetch("/api/incalzire").catch(() => {});
+  }, []);
+
   return (
     <div className="w-full max-w-md space-y-4">
       <Button
@@ -59,7 +70,7 @@ export function AuthPanel({
               <TabsTrigger value="register">Înregistrare</TabsTrigger>
             </TabsList>
             <TabsContent value="login" className="pt-4">
-              <LoginForm role={role} />
+              <LoginForm role={role} error={error} />
             </TabsContent>
             <TabsContent value="register" className="pt-4">
               <RegisterForm role={role} />

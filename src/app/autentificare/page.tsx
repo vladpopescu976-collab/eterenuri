@@ -17,15 +17,19 @@ function parseRole(value: string | undefined): Role | null {
 export default async function AutentificarePage({
   searchParams,
 }: {
-  searchParams: Promise<{ tip?: string; mod?: string }>;
+  searchParams: Promise<{ tip?: string; mod?: string; error?: string }>;
 }) {
-  const { tip, mod } = await searchParams;
+  const { tip, mod, error } = await searchParams;
   const role = parseRole(tip);
 
   return (
     <div className="flex flex-1 items-center justify-center px-4 py-12">
       {role ? (
-        <AuthPanel role={role} initialMode={mod === "inregistrare" ? "register" : "login"} />
+        <AuthPanel
+          role={role}
+          initialMode={mod === "inregistrare" ? "register" : "login"}
+          error={error}
+        />
       ) : (
         <AuthChooser />
       )}
