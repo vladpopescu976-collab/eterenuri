@@ -5,11 +5,13 @@ import { z } from "zod";
 
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { ActionError, fail, ok, toActionError, type ActionResult } from "@/lib/actions/result";
+import { fieldSchema, fieldUpdateSchema } from "@/lib/validations/field";
 
 async function requireBusinessSession() {
   const session = await auth();
   if (!session?.user || session.user.role !== "BUSINESS") {
-    throw new Error("Trebuie să fii autentificat cu un cont Business.");
+    throw new ActionError("Sesiunea a expirat. Autentifică-te din nou cu contul Business.");
   }
   return session;
 }
@@ -27,146 +29,137 @@ async function assertOwnsBooking(bookingId: string, ownerId: string) {
     include: { field: true },
   });
   if (!booking || booking.field.ownerId !== ownerId) {
-    throw new Error("Rezervarea nu a fost găsită.");
+    throw new ActionError("Rezervarea nu a fost găsită.");
   }
   return booking;
 }
 
-export async function approveBooking(bookingId: string) {
-  const session = await requireBusinessSession();
-  await assertOwnsBooking(bookingId, session.user.id);
-  await prisma.booking.update({ where: { id: bookingId }, data: { status: "CONFIRMED" } });
-  revalidateDashboard();
+export async function approveBooking(bookingId: string): Promise<ActionResult> {
+  try {
+    const session = await requireBusinessSession();
+    await assertOwnsBooking(bookingId, session.user.id);
+    await prisma.booking.update({ where: { id: bookingId }, data: { status: "CONFIRMED" } });
+    revalidateDashboard();
+    return ok();
+  } catch (error) {
+    return toActionError("approveBooking", error);
+  }
 }
 
-export async function rejectBooking(bookingId: string) {
-  const session = await requireBusinessSession();
-  await assertOwnsBooking(bookingId, session.user.id);
-  await prisma.booking.update({ where: { id: bookingId }, data: { status: "REJECTED" } });
-  revalidateDashboard();
+export async function rejectBooking(bookingId: string): Promise<ActionResult> {
+  try {
+    const session = await requireBusinessSession();
+    await assertOwnsBooking(bookingId, session.user.id);
+    await prisma.booking.update({ where: { id: bookingId }, data: { status: "REJECTED" } });
+    revalidateDashboard();
+    return ok();
+  } catch (error) {
+    return toActionError("rejectBooking", error);
+  }
 }
 
 const rescheduleSchema = z.object({
   bookingId: z.string().min(1),
-  date: z.string().min(1),
-  startTime: z.string().min(1),
-  endTime: z.string().min(1),
+  date: z.string().min(1, "Alege o dată."),
+  startTime: z.string().min(1, "Alege ora de start."),
+  endTime: z.string().min(1, "Alege ora de sfârșit."),
   note: z.string().optional(),
 });
 
-export async function proposeReschedule(input: z.infer<typeof rescheduleSchema>) {
-  const session = await requireBusinessSession();
-  const data = rescheduleSchema.parse(input);
-  const booking = await assertOwnsBooking(data.bookingId, session.user.id);
+export async function proposeReschedule(
+  input: z.infer<typeof rescheduleSchema>
+): Promise<ActionResult> {
+  try {
+    const session = await requireBusinessSession();
+    const data = rescheduleSchema.parse(input);
+    const booking = await assertOwnsBooking(data.bookingId, session.user.id);
 
-  const proposedStartTime = new Date(`${data.date}T${data.startTime}:00`);
-  const proposedEndTime = new Date(`${data.date}T${data.endTime}:00`);
-  if (proposedEndTime <= proposedStartTime) {
-    throw new Error("Ora de sfârșit trebuie să fie după ora de start.");
+    const proposedStartTime = new Date(`${data.date}T${data.startTime}:00`);
+    const proposedEndTime = new Date(`${data.date}T${data.endTime}:00`);
+    if (Number.isNaN(proposedStartTime.getTime()) || Number.isNaN(proposedEndTime.getTime())) {
+      return fail("Data sau ora aleasă nu este validă.");
+    }
+    if (proposedEndTime <= proposedStartTime) {
+      return fail("Ora de sfârșit trebuie să fie după ora de start.");
+    }
+
+    await prisma.booking.update({
+      where: { id: booking.id },
+      data: {
+        status: "RESCHEDULE_PROPOSED",
+        proposedStartTime,
+        proposedEndTime,
+        rescheduleNote: data.note?.trim() || null,
+      },
+    });
+    revalidateDashboard();
+    return ok();
+  } catch (error) {
+    return toActionError("proposeReschedule", error);
   }
-
-  await prisma.booking.update({
-    where: { id: booking.id },
-    data: {
-      status: "RESCHEDULE_PROPOSED",
-      proposedStartTime,
-      proposedEndTime,
-      rescheduleNote: data.note?.trim() || null,
-    },
-  });
-  revalidateDashboard();
 }
 
-const phoneSchema = z
-  .string()
-  .trim()
-  .min(1, "Numărul de telefon este obligatoriu.")
-  .regex(/^[0-9+()\s-]{7,20}$/, "Număr de telefon invalid.");
+export async function addField(input: z.input<typeof fieldSchema>): Promise<ActionResult> {
+  try {
+    const session = await requireBusinessSession();
+    const data = fieldSchema.parse(input);
 
-const fieldSchema = z.object({
-  name: z.string().min(2, "Numele este obligatoriu."),
-  sportType: z.enum(["FOOTBALL", "BASKETBALL", "TENNIS", "VOLLEYBALL", "HANDBALL", "PADEL", "BADMINTON", "OTHER"]),
-  city: z.string().min(2, "Orașul este obligatoriu."),
-  address: z.string().min(2, "Adresa este obligatorie."),
-  pricePerHour: z.number().positive("Prețul trebuie să fie pozitiv."),
-  openingHour: z.number().int().min(0).max(23),
-  closingHour: z.number().int().min(1).max(24),
-  contactPhone: phoneSchema,
-  description: z.string().trim().max(600, "Descrierea este prea lungă.").optional(),
-  amenities: z.array(z.string().trim().min(1)).max(20).optional(),
-  // Acceptăm fie un link extern (https://…), fie o poză încărcată de noi,
-  // servită din bucket-ul privat prin /api/poze/…
-  images: z
-    .array(
-      z
-        .string()
-        .trim()
-        .refine(
-          (value) => /^https?:\/\//.test(value) || value.startsWith("/api/poze/"),
-          "Link de imagine invalid."
-        )
-    )
-    .max(6)
-    .optional(),
-});
-
-export async function addField(input: z.infer<typeof fieldSchema>) {
-  const session = await requireBusinessSession();
-  const data = fieldSchema.parse(input);
-  if (data.closingHour <= data.openingHour) {
-    throw new Error("Ora de închidere trebuie să fie după ora de deschidere.");
+    const { description, amenities, images, ...rest } = data;
+    await prisma.field.create({
+      data: {
+        ...rest,
+        ownerId: session.user.id,
+        description: description || null,
+        amenities: amenities ?? [],
+        images: images ?? [],
+      },
+    });
+    revalidateDashboard();
+    return ok();
+  } catch (error) {
+    return toActionError("addField", error);
   }
-  const { description, amenities, images, ...rest } = data;
-  await prisma.field.create({
-    data: {
-      ...rest,
-      ownerId: session.user.id,
-      description: description || null,
-      amenities: amenities ?? [],
-      images: images ?? [],
-    },
-  });
-  revalidateDashboard();
 }
 
-const fieldUpdateSchema = z.object({
-  fieldId: z.string().min(1),
-  pricePerHour: z.number().positive(),
-  openingHour: z.number().int().min(0).max(23),
-  closingHour: z.number().int().min(1).max(24),
-  isActive: z.boolean(),
-  contactPhone: phoneSchema,
-});
+export async function updateField(
+  input: z.input<typeof fieldUpdateSchema>
+): Promise<ActionResult> {
+  try {
+    const session = await requireBusinessSession();
+    const data = fieldUpdateSchema.parse(input);
 
-export async function updateField(input: z.infer<typeof fieldUpdateSchema>) {
-  const session = await requireBusinessSession();
-  const data = fieldUpdateSchema.parse(input);
-  if (data.closingHour <= data.openingHour) {
-    throw new Error("Ora de închidere trebuie să fie după ora de deschidere.");
+    const field = await prisma.field.findUnique({ where: { id: data.fieldId } });
+    if (!field || field.ownerId !== session.user.id) {
+      return fail("Terenul nu a fost găsit.");
+    }
+    await prisma.field.update({
+      where: { id: data.fieldId },
+      data: {
+        pricePerHour: data.pricePerHour,
+        openingHour: data.openingHour,
+        closingHour: data.closingHour,
+        isActive: data.isActive,
+        contactPhone: data.contactPhone,
+      },
+    });
+    revalidateDashboard();
+    return ok();
+  } catch (error) {
+    return toActionError("updateField", error);
   }
-  const field = await prisma.field.findUnique({ where: { id: data.fieldId } });
-  if (!field || field.ownerId !== session.user.id) {
-    throw new Error("Terenul nu a fost găsit.");
-  }
-  await prisma.field.update({
-    where: { id: data.fieldId },
-    data: {
-      pricePerHour: data.pricePerHour,
-      openingHour: data.openingHour,
-      closingHour: data.closingHour,
-      isActive: data.isActive,
-      contactPhone: data.contactPhone,
-    },
-  });
-  revalidateDashboard();
 }
 
-export async function removeField(fieldId: string) {
-  const session = await requireBusinessSession();
-  const field = await prisma.field.findUnique({ where: { id: fieldId } });
-  if (!field || field.ownerId !== session.user.id) {
-    throw new Error("Terenul nu a fost găsit.");
+export async function removeField(fieldId: string): Promise<ActionResult> {
+  try {
+    const session = await requireBusinessSession();
+    const field = await prisma.field.findUnique({ where: { id: fieldId } });
+    if (!field || field.ownerId !== session.user.id) {
+      return fail("Terenul nu a fost găsit.");
+    }
+    await prisma.field.delete({ where: { id: fieldId } });
+    revalidateDashboard();
+    return ok();
+  } catch (error) {
+    return toActionError("removeField", error);
   }
-  await prisma.field.delete({ where: { id: fieldId } });
-  revalidateDashboard();
 }

@@ -20,7 +20,9 @@ export const storageClient = isStorageConfigured
     })
   : null;
 
-export const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
+// Platformele serverless taie cererile in jur de 4,5 MB inainte sa ajunga la
+// codul nostru, deci limita utila e sub pragul lor.
+export const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
 
 export const ALLOWED_IMAGE_TYPES: Record<string, string> = {
   "image/jpeg": "jpg",

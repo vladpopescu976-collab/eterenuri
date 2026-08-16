@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { addField } from "@/lib/actions/business";
 import { sportOptions } from "@/lib/sports";
+import { MAX_FIELD_IMAGES, fieldSchema } from "@/lib/validations/field";
 import type { SportType } from "@prisma/client";
 
 const empty = {
@@ -28,7 +29,16 @@ const empty = {
   amenities: "",
 };
 
-const MAX_IMAGES = 6;
+const MAX_IMAGES = MAX_FIELD_IMAGES;
+
+// Platforma taie cererile mai mari de ~4,5 MB înainte să ajungă la codul
+// nostru, iar răspunsul ei nu e JSON. Trimitem pozele una câte una și
+// verificăm dimensiunea din timp, ca mesajul să rămână inteligibil.
+const MAX_FILE_BYTES = 4 * 1024 * 1024;
+
+function formatMB(bytes: number) {
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 const AMENITY_SUGGESTIONS = ["Nocturnă", "Vestiare", "Dușuri", "Parcare", "Acoperit", "Echipament inclus"];
 
@@ -66,7 +76,7 @@ export function AddFieldDialog({
   function addLink() {
     const value = linkInput.trim();
     if (!value) return;
-    if (!/^https?:\/\//.test(value)) {
+    if (!/^https?:\/\//i.test(value)) {
       setError("Linkul trebuie să înceapă cu http:// sau https://");
       return;
     }
@@ -90,18 +100,39 @@ export function AddFieldDialog({
     setError("");
     setUploading(true);
     try {
-      const body = new FormData();
-      Array.from(fileList)
-        .slice(0, remaining)
-        .forEach((file) => body.append("files", file));
+      for (const file of Array.from(fileList).slice(0, remaining)) {
+        if (file.size > MAX_FILE_BYTES) {
+          setError(
+            `Poza „${file.name}” are ${formatMB(file.size)}. Limita este de ${formatMB(MAX_FILE_BYTES)} per poză — micșoreaz-o și încearcă din nou.`
+          );
+          return;
+        }
 
-      const response = await fetch("/api/upload", { method: "POST", body });
-      const data = await response.json();
-      if (!response.ok) {
-        setError(data.error ?? "Încărcarea a eșuat.");
-        return;
+        const body = new FormData();
+        body.append("files", file);
+
+        const response = await fetch("/api/upload", { method: "POST", body });
+
+        // Când cererea e oprită de platformă (poză prea mare) răspunsul e o
+        // pagină HTML, nu JSON, iar `response.json()` arunca o eroare seacă.
+        const data = await response.json().catch(() => null);
+
+        if (!response.ok) {
+          if (response.status === 413) {
+            setError(`Poza „${file.name}” este prea mare. Încearcă una sub ${formatMB(MAX_FILE_BYTES)}.`);
+          } else {
+            setError(data?.error ?? `Încărcarea pozei „${file.name}” a eșuat (cod ${response.status}).`);
+          }
+          return;
+        }
+
+        const urls: unknown = data?.urls;
+        if (!Array.isArray(urls) || urls.length === 0) {
+          setError("Serverul nu a returnat poza încărcată. Încearcă din nou.");
+          return;
+        }
+        setImages((prev) => [...prev, ...(urls as string[])]);
       }
-      setImages((prev) => [...prev, ...data.urls]);
     } catch {
       setError("Încărcarea a eșuat. Verifică conexiunea și încearcă din nou.");
     } finally {
@@ -113,33 +144,41 @@ export function AddFieldDialog({
   function submit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-    if (!form.name.trim() || !form.city.trim() || !form.address.trim() || !form.price || !form.contactPhone.trim()) {
-      setError("Completează toate câmpurile obligatorii, inclusiv numărul de telefon.");
+
+    const payload = {
+      name: form.name.trim(),
+      sportType: form.sportType,
+      city: form.city.trim(),
+      address: form.address.trim(),
+      pricePerHour: Number(form.price),
+      openingHour: Number(form.open),
+      closingHour: Number(form.close),
+      contactPhone: form.contactPhone.trim(),
+      description: form.description.trim() || undefined,
+      amenities: splitList(form.amenities, /,/),
+      images,
+    };
+
+    // Verificăm cu exact aceleași reguli ca serverul, ca greșelile obișnuite
+    // (telefon scris aiurea, oră de închidere mai mică decât cea de
+    // deschidere) să apară instant, cu mesajul lor adevărat.
+    const parsed = fieldSchema.safeParse(payload);
+    if (!parsed.success) {
+      setError(parsed.error.issues[0]?.message ?? "Completează corect toate câmpurile obligatorii.");
       return;
     }
+
     startTransition(async () => {
-      try {
-        await addField({
-          name: form.name.trim(),
-          sportType: form.sportType,
-          city: form.city.trim(),
-          address: form.address.trim(),
-          pricePerHour: Number(form.price),
-          openingHour: Number(form.open),
-          closingHour: Number(form.close),
-          contactPhone: form.contactPhone.trim(),
-          description: form.description.trim() || undefined,
-          amenities: splitList(form.amenities, /,/),
-          images,
-        });
-        toast.success("Terenul a fost adăugat.");
-        setForm(empty);
-        setImages([]);
-        setLinkInput("");
-        onOpenChange(false);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "A apărut o eroare.");
+      const result = await addField(parsed.data);
+      if (!result.ok) {
+        setError(result.error);
+        return;
       }
+      toast.success("Terenul a fost adăugat.");
+      setForm(empty);
+      setImages([]);
+      setLinkInput("");
+      onOpenChange(false);
     });
   }
 
@@ -405,7 +444,7 @@ export function AddFieldDialog({
 
             <p className="mt-1.5 text-[11.5px] text-muted-foreground">
               Poți încărca fișiere de pe calculator sau adăuga linkuri. Maximum {MAX_IMAGES} poze,
-              5 MB fiecare. Prima poză devine imaginea principală.
+              {" "}{formatMB(MAX_FILE_BYTES)} fiecare. Prima poză devine imaginea principală.
             </p>
           </div>
 

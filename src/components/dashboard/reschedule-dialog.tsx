@@ -37,13 +37,13 @@ export function RescheduleDialog({
   function submit() {
     setError("");
     startTransition(async () => {
-      try {
-        await proposeReschedule({ bookingId, date, startTime: start, endTime: end });
-        toast.success("Propunerea de mutare a fost trimisă clientului.");
-        onOpenChange(false);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "A apărut o eroare.");
+      const result = await proposeReschedule({ bookingId, date, startTime: start, endTime: end });
+      if (!result.ok) {
+        setError(result.error);
+        return;
       }
+      toast.success("Propunerea de mutare a fost trimisă clientului.");
+      onOpenChange(false);
     });
   }
 

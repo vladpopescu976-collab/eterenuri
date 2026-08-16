@@ -61,19 +61,19 @@ export function BookingForm({
       return;
     }
     startTransition(async () => {
-      try {
-        await createBookingRequest({
-          fieldId,
-          date: format(date, "yyyy-MM-dd"),
-          startTime: start,
-          endTime: end,
-          notes: notes.trim() || undefined,
-        });
-        toast.success("Cererea de rezervare a fost trimisă! O poți urmări în „Rezervările mele”.");
-        router.push("/rezervarile-mele");
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "A apărut o eroare.");
+      const result = await createBookingRequest({
+        fieldId,
+        date: format(date, "yyyy-MM-dd"),
+        startTime: start,
+        endTime: end,
+        notes: notes.trim() || undefined,
+      });
+      if (!result.ok) {
+        setError(result.error);
+        return;
       }
+      toast.success("Cererea de rezervare a fost trimisă! O poți urmări în „Rezervările mele”.");
+      router.push("/rezervarile-mele");
     });
   }
 

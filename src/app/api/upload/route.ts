@@ -54,7 +54,7 @@ export async function POST(request: Request) {
     }
     if (file.size > MAX_UPLOAD_BYTES) {
       return NextResponse.json(
-        { error: `Poza „${file.name}” depășește 5 MB.` },
+        { error: `Poza „${file.name}” depășește limita de 4 MB.` },
         { status: 400 }
       );
     }
@@ -62,15 +62,37 @@ export async function POST(request: Request) {
     const key = `terenuri/${session.user.id}/${randomUUID()}.${extension}`;
     const body = Buffer.from(await file.arrayBuffer());
 
-    await storageClient.send(
-      new PutObjectCommand({
-        Bucket: storageBucket,
-        Key: key,
-        Body: body,
-        ContentType: file.type,
-        CacheControl: "public, max-age=31536000, immutable",
-      })
-    );
+    try {
+      await storageClient.send(
+        new PutObjectCommand({
+          Bucket: storageBucket,
+          Key: key,
+          Body: body,
+          ContentType: file.type,
+          CacheControl: "public, max-age=31536000, immutable",
+        })
+      );
+    } catch (error) {
+      // Fara asta, o cheie de storage gresita arunca o eroare neprinsa si
+      // clientul primea un 500 fara niciun mesaj folositor.
+      const cauza = error instanceof Error ? error.name : "UnknownError";
+      console.error("Eroare la scrierea pozei in bucket:", cauza, error);
+
+      const credentialeGresite =
+        cauza === "InvalidAccessKeyId" ||
+        cauza === "SignatureDoesNotMatch" ||
+        cauza === "AccessDenied";
+
+      return NextResponse.json(
+        {
+          error: credentialeGresite
+            ? "Storage-ul a respins cheile de acces. Verifică STORAGE_ACCESS_KEY_ID și STORAGE_SECRET_ACCESS_KEY."
+            : "Poza nu a putut fi salvată în storage. Încearcă din nou.",
+          cauza,
+        },
+        { status: 502 }
+      );
+    }
 
     // Bucket-ul e privat — pozele se servesc prin /api/poze/<key>.
     urls.push(`/api/poze/${key}`);

@@ -47,32 +47,32 @@ function FieldCard({ field }: { field: Field }) {
       return;
     }
     startTransition(async () => {
-      try {
-        await updateField({
-          fieldId: draft.id,
-          pricePerHour: draft.pricePerHour,
-          openingHour: draft.openingHour,
-          closingHour: draft.closingHour,
-          isActive: draft.isActive,
-          contactPhone: draft.contactPhone!.trim(),
-        });
-        setSaved(true);
-        setTimeout(() => setSaved(false), 1600);
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "A apărut o eroare.");
+      const result = await updateField({
+        fieldId: draft.id,
+        pricePerHour: draft.pricePerHour,
+        openingHour: draft.openingHour,
+        closingHour: draft.closingHour,
+        isActive: draft.isActive,
+        contactPhone: draft.contactPhone!.trim(),
+      });
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
       }
+      setSaved(true);
+      setTimeout(() => setSaved(false), 1600);
     });
   }
 
   function remove() {
     if (!confirm(`Sigur elimini „${field.name}”? Toate rezervările asociate vor fi șterse.`)) return;
     startTransition(async () => {
-      try {
-        await removeField(field.id);
-        toast.success("Teren eliminat.");
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "A apărut o eroare.");
+      const result = await removeField(field.id);
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
       }
+      toast.success("Teren eliminat.");
     });
   }
 

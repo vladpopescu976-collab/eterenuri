@@ -59,28 +59,26 @@ export function BookingsTable({ bookings, fields }: { bookings: Row[]; fields: {
   function handleApprove(id: string) {
     setPendingId(id);
     startTransition(async () => {
-      try {
-        await approveBooking(id);
-        toast.success("Rezervare aprobată.");
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "A apărut o eroare.");
-      } finally {
-        setPendingId(null);
+      const result = await approveBooking(id);
+      setPendingId(null);
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
       }
+      toast.success("Rezervare aprobată.");
     });
   }
 
   function handleReject(id: string) {
     setPendingId(id);
     startTransition(async () => {
-      try {
-        await rejectBooking(id);
-        toast.success("Rezervare respinsă.");
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "A apărut o eroare.");
-      } finally {
-        setPendingId(null);
+      const result = await rejectBooking(id);
+      setPendingId(null);
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
       }
+      toast.success("Rezervare respinsă.");
     });
   }
 

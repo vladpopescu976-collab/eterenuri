@@ -33,23 +33,23 @@ function BookingRow({ booking }: { booking: Booking }) {
 
   function accept() {
     startTransition(async () => {
-      try {
-        await acceptReschedule(booking.id);
-        toast.success("Noua oră a fost acceptată.");
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "A apărut o eroare.");
+      const result = await acceptReschedule(booking.id);
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
       }
+      toast.success("Noua oră a fost acceptată.");
     });
   }
 
   function decline() {
     startTransition(async () => {
-      try {
-        await declineReschedule(booking.id);
-        toast.success("Mutarea a fost refuzată.");
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "A apărut o eroare.");
+      const result = await declineReschedule(booking.id);
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
       }
+      toast.success("Mutarea a fost refuzată.");
     });
   }
 
