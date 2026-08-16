@@ -11,6 +11,11 @@ import { FieldCard } from "@/components/field-card";
 import { SearchFilters } from "@/components/search-filters";
 import { sportMeta } from "@/lib/sports";
 
+// Baza Prisma Postgres se suspenda cand e inactiva, iar prima cerere
+// care o trezeste poate dura ~30s. Implicit Vercel taie functia la 10s,
+// ceea ce facea ca autentificarea sa esueze mereu dupa o pauza.
+export const maxDuration = 60;
+
 export const metadata: Metadata = {
   title: "Caută terenuri — Eterenuri",
 };

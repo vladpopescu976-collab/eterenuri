@@ -2,6 +2,11 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { FieldSettingsClient } from "@/components/dashboard/field-settings-client";
 
+// Baza Prisma Postgres se suspenda cand e inactiva, iar prima cerere
+// care o trezeste poate dura ~30s. Implicit Vercel taie functia la 10s,
+// ceea ce facea ca autentificarea sa esueze mereu dupa o pauza.
+export const maxDuration = 60;
+
 export default async function BusinessFieldsPage() {
   const session = await auth();
   const ownerId = session!.user.id;

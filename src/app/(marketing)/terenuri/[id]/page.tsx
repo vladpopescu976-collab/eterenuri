@@ -8,6 +8,11 @@ import { Badge } from "@/components/ui/badge";
 import { BookingForm } from "@/components/booking-form";
 import { sportMeta } from "@/lib/sports";
 
+// Baza Prisma Postgres se suspenda cand e inactiva, iar prima cerere
+// care o trezeste poate dura ~30s. Implicit Vercel taie functia la 10s,
+// ceea ce facea ca autentificarea sa esueze mereu dupa o pauza.
+export const maxDuration = 60;
+
 export default async function FieldDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const [field, session] = await Promise.all([prisma.field.findUnique({ where: { id } }), auth()]);

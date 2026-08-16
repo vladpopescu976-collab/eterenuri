@@ -3,6 +3,11 @@ import { prisma } from "@/lib/prisma";
 import { OverviewClient } from "@/components/dashboard/overview-client";
 import { UrgentBookingsAlert } from "@/components/dashboard/urgent-bookings-alert";
 
+// Baza Prisma Postgres se suspenda cand e inactiva, iar prima cerere
+// care o trezeste poate dura ~30s. Implicit Vercel taie functia la 10s,
+// ceea ce facea ca autentificarea sa esueze mereu dupa o pauza.
+export const maxDuration = 60;
+
 function oneHourAgo() {
   return new Date(Date.now() - 60 * 60 * 1000);
 }

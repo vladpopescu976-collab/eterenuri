@@ -3,6 +3,11 @@ import { GetObjectCommand } from "@aws-sdk/client-s3";
 
 import { isStorageConfigured, storageBucket, storageClient } from "@/lib/storage";
 
+// Baza Prisma Postgres se suspenda cand e inactiva, iar prima cerere
+// care o trezeste poate dura ~30s. Implicit Vercel taie functia la 10s,
+// ceea ce facea ca autentificarea sa esueze mereu dupa o pauza.
+export const maxDuration = 60;
+
 // Bucket-ul este privat, deci pozele încărcate sunt servite prin acest proxy.
 // Cheile sunt generate de noi (terenuri/<userId>/<uuid>.<ext>), iar prefixul
 // este verificat mai jos ca să nu poată fi cerut alt conținut din bucket.

@@ -11,6 +11,11 @@ import {
   storageClient,
 } from "@/lib/storage";
 
+// Baza Prisma Postgres se suspenda cand e inactiva, iar prima cerere
+// care o trezeste poate dura ~30s. Implicit Vercel taie functia la 10s,
+// ceea ce facea ca autentificarea sa esueze mereu dupa o pauza.
+export const maxDuration = 60;
+
 export async function POST(request: Request) {
   const session = await auth();
   if (!session?.user || session.user.role !== "BUSINESS") {
