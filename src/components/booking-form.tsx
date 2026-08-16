@@ -13,15 +13,16 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { createBookingRequest } from "@/lib/actions/bookings";
+import { createBookingRequest, getBookedSlots } from "@/lib/actions/bookings";
 import { localDateTimeToIso } from "@/lib/datetime";
-
-function hourOptions(openingHour: number, closingHour: number) {
-  return Array.from({ length: closingHour - openingHour }, (_, i) => {
-    const h = openingHour + i;
-    return `${String(h).padStart(2, "0")}:00`;
-  });
-}
+import {
+  busyHours,
+  describeOccupied,
+  hourLabels,
+  hourOf,
+  rangeIsBusy,
+  type Interval,
+} from "@/lib/availability";
 
 export function BookingForm({
   fieldId,
@@ -45,14 +46,66 @@ export function BookingForm({
   const [error, setError] = useState("");
   const [isPending, startTransition] = useTransition();
 
-  const startOptions = useMemo(() => hourOptions(openingHour, closingHour), [openingHour, closingHour]);
+  const [occupied, setOccupied] = useState<Interval[]>([]);
+  const [loadingSlots, setLoadingSlots] = useState(false);
+
+  // Intervalele deja rezervate se cer la alegerea zilei, ca orele ocupate să
+  // apară gri înainte ca utilizatorul să încerce să le selecteze.
+  async function loadOccupied(day: Date) {
+    setLoadingSlots(true);
+    setOccupied([]);
+    try {
+      const dayStart = new Date(day.getFullYear(), day.getMonth(), day.getDate());
+      const dayEnd = new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1);
+      const result = await getBookedSlots({
+        fieldId,
+        dayStart: dayStart.toISOString(),
+        dayEnd: dayEnd.toISOString(),
+      });
+      if (result.ok) {
+        setOccupied(result.data.map((s) => ({ start: new Date(s.start), end: new Date(s.end) })));
+      }
+    } finally {
+      setLoadingSlots(false);
+    }
+  }
+
+  const busy = useMemo(
+    () => (date ? busyHours(date, occupied, openingHour, closingHour) : new Set<number>()),
+    [date, occupied, openingHour, closingHour]
+  );
+
+  const startOptions = useMemo(() => hourLabels(openingHour, closingHour), [openingHour, closingHour]);
   const endOptions = useMemo(() => {
     if (!start) return [];
-    const startHour = Number(start.split(":")[0]);
-    return hourOptions(startHour + 1, closingHour + 1);
+    return hourLabels(hourOf(start) + 1, closingHour + 1);
   }, [start, closingHour]);
 
-  const hours = start && end ? Number(end.split(":")[0]) - Number(start.split(":")[0]) : 0;
+  // O oră de sfârșit e valabilă doar dacă tot intervalul până la ea e liber.
+  function endIsBusy(endLabel: string) {
+    return start ? rangeIsBusy(hourOf(start), hourOf(endLabel), busy) : false;
+  }
+
+  function pickStart(value: string) {
+    if (busy.has(hourOf(value))) {
+      setError(`Intervalul ${value} este deja rezervat pe acest teren. Alege altă oră.`);
+      return;
+    }
+    setError("");
+    setStart(value);
+    setEnd("");
+  }
+
+  function pickEnd(value: string) {
+    if (endIsBusy(value)) {
+      setError(`Intervalul ${start}–${value} trece peste o rezervare existentă. Alege altă oră.`);
+      return;
+    }
+    setError("");
+    setEnd(value);
+  }
+
+  const hours = start && end ? hourOf(end) - hourOf(start) : 0;
   const total = hours > 0 ? hours * pricePerHour : 0;
 
   function submit() {
@@ -127,7 +180,11 @@ export function BookingForm({
               selected={date}
               onSelect={(value) => {
                 setDate(value);
+                setStart("");
+                setEnd("");
+                setError("");
                 setDatePopoverOpen(false);
+                if (value) loadOccupied(value);
               }}
               locale={ro}
               disabled={{ before: new Date() }}
@@ -139,35 +196,52 @@ export function BookingForm({
       <div className="grid grid-cols-2 gap-3">
         <div>
           <p className="mb-1.5 text-[12.5px] font-medium text-muted-foreground">Ora start</p>
-          <Select value={start} onValueChange={(v) => { setStart(v ?? ""); setEnd(""); }}>
+          <Select value={start} onValueChange={(v) => v && pickStart(v)} disabled={!date || loadingSlots}>
             <SelectTrigger className="w-full">
-              <SelectValue placeholder="Start" />
+              <SelectValue placeholder={loadingSlots ? "Se verifică…" : "Start"} />
             </SelectTrigger>
             <SelectContent>
-              {startOptions.map((h) => (
-                <SelectItem key={h} value={h}>
-                  {h}
-                </SelectItem>
-              ))}
+              {startOptions.map((h) => {
+                const taken = busy.has(hourOf(h));
+                return (
+                  <SelectItem key={h} value={h} className={taken ? "opacity-45" : undefined}>
+                    {h}
+                    {taken && <span className="ml-1.5 text-[11px]">· ocupat</span>}
+                  </SelectItem>
+                );
+              })}
             </SelectContent>
           </Select>
         </div>
         <div>
           <p className="mb-1.5 text-[12.5px] font-medium text-muted-foreground">Ora sfârșit</p>
-          <Select value={end} onValueChange={(v) => setEnd(v ?? "")} disabled={!start}>
+          <Select value={end} onValueChange={(v) => v && pickEnd(v)} disabled={!start}>
             <SelectTrigger className="w-full">
               <SelectValue placeholder="Sfârșit" />
             </SelectTrigger>
             <SelectContent>
-              {endOptions.map((h) => (
-                <SelectItem key={h} value={h}>
-                  {h}
-                </SelectItem>
-              ))}
+              {endOptions.map((h) => {
+                const taken = endIsBusy(h);
+                return (
+                  <SelectItem key={h} value={h} className={taken ? "opacity-45" : undefined}>
+                    {h}
+                    {taken && <span className="ml-1.5 text-[11px]">· ocupat</span>}
+                  </SelectItem>
+                );
+              })}
             </SelectContent>
           </Select>
         </div>
       </div>
+
+      {date && !loadingSlots && occupied.length > 0 && (
+        <p className="rounded-lg bg-muted px-3 py-2 text-[12px] text-muted-foreground">
+          Deja rezervat în această zi: <span className="font-medium text-foreground">{describeOccupied(occupied)}</span>
+        </p>
+      )}
+      {date && !loadingSlots && occupied.length === 0 && (
+        <p className="text-[12px] text-muted-foreground">Toate orele sunt libere în această zi.</p>
+      )}
 
       <div>
         <p className="mb-1.5 text-[12.5px] font-medium text-muted-foreground">Observații (opțional)</p>

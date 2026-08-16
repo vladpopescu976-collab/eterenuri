@@ -1,12 +1,13 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { motion } from "framer-motion";
-import { MapPin, Check, X } from "lucide-react";
+import { MapPin, Check, X, CalendarClock, Ban } from "lucide-react";
 import { toast } from "sonner";
 
 import { StatusBadge } from "@/components/dashboard/status-badge";
-import { acceptReschedule, declineReschedule } from "@/lib/actions/bookings";
+import { EditBookingDialog } from "@/components/edit-booking-dialog";
+import { acceptReschedule, cancelBooking, declineReschedule } from "@/lib/actions/bookings";
 import type { BookingStatus } from "@prisma/client";
 
 type Booking = {
@@ -18,7 +19,7 @@ type Booking = {
   proposedEndTime: Date | null;
   rescheduleNote: string | null;
   totalPrice: number;
-  field: { id: string; name: string; city: string };
+  field: { id: string; name: string; city: string; openingHour: number; closingHour: number };
 };
 
 function fmtDateTime(d: Date) {
@@ -30,6 +31,27 @@ function fmtTime(d: Date) {
 
 function BookingRow({ booking }: { booking: Booking }) {
   const [isPending, startTransition] = useTransition();
+  const [editOpen, setEditOpen] = useState(false);
+
+  // O rezervare poate fi modificată sau anulată cât timp e încă activă și nu
+  // s-a consumat. Cele respinse, anulate sau trecute rămân doar în istoric.
+  const isOver = booking.endTime < new Date();
+  const canManage =
+    !isOver && booking.status !== "CANCELLED" && booking.status !== "REJECTED";
+
+  function cancel() {
+    if (!confirm("Sigur anulezi această rezervare? Orele vor redeveni libere pentru alți clienți.")) {
+      return;
+    }
+    startTransition(async () => {
+      const result = await cancelBooking(booking.id);
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success("Rezervarea a fost anulată.");
+    });
+  }
 
   function accept() {
     startTransition(async () => {
@@ -108,6 +130,43 @@ function BookingRow({ booking }: { booking: Booking }) {
             </button>
           </div>
         </div>
+      )}
+
+      {canManage && (
+        <div className="mt-4 flex gap-2 border-t pt-3">
+          <button
+            type="button"
+            disabled={isPending}
+            onClick={() => setEditOpen(true)}
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-[12.5px] font-medium transition-colors hover:border-primary hover:text-primary disabled:opacity-50"
+          >
+            <CalendarClock className="h-3.5 w-3.5" />
+            Modifică rezervarea
+          </button>
+          <button
+            type="button"
+            disabled={isPending}
+            onClick={cancel}
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-[12.5px] font-medium text-muted-foreground transition-colors hover:border-destructive/40 hover:text-destructive disabled:opacity-50"
+          >
+            <Ban className="h-3.5 w-3.5" />
+            Anulează
+          </button>
+        </div>
+      )}
+
+      {canManage && (
+        <EditBookingDialog
+          bookingId={booking.id}
+          fieldId={booking.field.id}
+          fieldName={booking.field.name}
+          openingHour={booking.field.openingHour}
+          closingHour={booking.field.closingHour}
+          currentStart={booking.startTime}
+          currentEnd={booking.endTime}
+          open={editOpen}
+          onOpenChange={setEditOpen}
+        />
       )}
     </motion.div>
   );

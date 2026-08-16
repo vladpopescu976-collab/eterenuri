@@ -17,7 +17,11 @@ export default async function MyBookingsPage() {
 
   const bookings = await prisma.booking.findMany({
     where: { customerId: session.user.id },
-    include: { field: { select: { id: true, name: true, city: true } } },
+    include: {
+      field: {
+        select: { id: true, name: true, city: true, openingHour: true, closingHour: true },
+      },
+    },
     orderBy: { startTime: "desc" },
   });
 
