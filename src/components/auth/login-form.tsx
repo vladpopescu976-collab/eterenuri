@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { signIn, getSession } from "next-auth/react";
+import { signIn } from "next-auth/react";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
@@ -43,10 +43,11 @@ export function LoginForm() {
         return;
       }
 
-      const session = await getSession();
       toast.success("Autentificare reușită! Bine ai revenit.");
-      router.push(session?.user.role === "BUSINESS" ? "/dashboard/business" : "/");
-      router.refresh();
+      // Pagina decide pe server unde te duce, in functie de rolul contului.
+      // Sesiunea e citita din cookie pe server, deci nu depinde de starea
+      // inca nepropagata din client.
+      router.push("/dupa-autentificare");
     } catch {
       toast.error("A apărut o eroare. Te rugăm să încerci din nou.");
     } finally {

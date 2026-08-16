@@ -60,8 +60,8 @@ export function RegisterForm({ role }: { role: Role }) {
       }
 
       toast.success("Cont creat cu succes! Bine ai venit pe Eterenuri.");
-      router.push(role === "BUSINESS" ? "/dashboard/business" : "/");
-      router.refresh();
+      // Pagina decide pe server unde te duce, in functie de rolul contului.
+      router.push("/dupa-autentificare");
     } catch {
       toast.error("A apărut o eroare. Te rugăm să încerci din nou.");
     } finally {
