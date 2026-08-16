@@ -59,7 +59,7 @@ export function AuthPanel({
               <TabsTrigger value="register">Înregistrare</TabsTrigger>
             </TabsList>
             <TabsContent value="login" className="pt-4">
-              <LoginForm />
+              <LoginForm role={role} />
             </TabsContent>
             <TabsContent value="register" className="pt-4">
               <RegisterForm role={role} />

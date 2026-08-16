@@ -19,8 +19,9 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { loginSchema, type LoginInput } from "@/lib/validations/auth";
+import type { Role } from "@prisma/client";
 
-export function LoginForm() {
+export function LoginForm({ role }: { role: Role }) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
 
@@ -35,11 +36,19 @@ export function LoginForm() {
       const result = await signIn("credentials", {
         email: values.email,
         password: values.password,
+        expectedRole: role,
         redirect: false,
       });
 
       if (result?.error) {
-        toast.error("Email sau parolă incorectă.");
+        // Nu dezvaluim daca emailul exista: acelasi mesaj si pentru parola
+        // gresita, si pentru cont de alt tip, dar cu un indiciu util.
+        toast.error("Email sau parolă incorectă.", {
+          description:
+            role === "PERSONAL"
+              ? "Dacă ai un cont Business, revino și alege „Cont Business”."
+              : "Dacă ai un cont Personal, revino și alege „Cont Personal”.",
+        });
         return;
       }
 

@@ -16,6 +16,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       credentials: {
         email: { label: "Email", type: "email" },
         password: { label: "Parolă", type: "password" },
+        // Tipul de cont ales in interfata. Daca e trimis, contul trebuie sa
+        // corespunda — altfel autentificarea de pe tabul "Cont Personal" cu
+        // datele unui cont Business te-ar duce in panoul Business.
+        expectedRole: { label: "Tip cont", type: "text" },
       },
       authorize: async (credentials) => {
         const parsed = loginSchema.safeParse(credentials);
@@ -28,6 +32,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         const passwordValid = await bcrypt.compare(parsed.data.password, user.password);
         if (!passwordValid) return null;
+
+        const expectedRole = credentials?.expectedRole;
+        if (
+          (expectedRole === "PERSONAL" || expectedRole === "BUSINESS") &&
+          user.role !== expectedRole
+        ) {
+          return null;
+        }
 
         return {
           id: user.id,
