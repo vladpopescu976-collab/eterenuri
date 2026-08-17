@@ -20,15 +20,19 @@ private struct AnvelopaEroare: Decodable {
 actor ApiClient {
     static let shared = ApiClient()
 
-    private let baza: URL
     private let sesiuneRetea: URLSession
 
     private init() {
-        baza = Config.urlBaza.appendingPathComponent("api/mobil")
         let configurare = URLSessionConfiguration.default
         // Baza de date se trezește greu după inactivitate, deci lăsăm timp.
         configurare.timeoutIntervalForRequest = 60
         sesiuneRetea = URLSession(configuration: configurare)
+    }
+
+    /// Citită la fiecare cerere, ca schimbarea adresei din aplicație să aibă
+    /// efect imediat, fără repornire.
+    private var baza: URL {
+        Config.urlBaza.appendingPathComponent("api/mobil")
     }
 
     private var token: String?
@@ -122,7 +126,11 @@ actor ApiClient {
             return "Nu am putut contacta serverul (\(adresa)). \(error.localizedDescription)"
         }
 
+        let eLoopback = ["127.0.0.1", "localhost", "::1"].contains(url?.host ?? "")
+
         switch urlError.code {
+        case .cannotConnectToHost where eLoopback, .timedOut where eLoopback:
+            return "Pe telefon, \(adresa) înseamnă telefonul însuși, nu calculatorul. Pune adresa calculatorului din rețea la „Adresa serverului”."
         case .cannotConnectToHost:
             return "Serverul de la \(adresa) nu răspunde. Pornește-l cu „npm run dev” sau schimbă EterenuriApiURL din Info.plist."
         case .cannotFindHost:

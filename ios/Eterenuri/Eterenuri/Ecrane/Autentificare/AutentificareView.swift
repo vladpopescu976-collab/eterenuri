@@ -5,6 +5,7 @@ struct AutentificareView: View {
 
     @State private var rolAles: Rol?
     @State private var modInregistrare = false
+    @State private var arataSetari = false
 
     var body: some View {
         NavigationStack {
@@ -17,7 +18,15 @@ struct AutentificareView: View {
                     rolAles = rol
                     modInregistrare = false
                 }
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button("Server", systemImage: "server.rack") { arataSetari = true }
+                    }
+                }
             }
+        }
+        .sheet(isPresented: $arataSetari) {
+            NavigationStack { SetariServerView() }
         }
     }
 }
@@ -108,6 +117,7 @@ private struct FormularAutentificare: View {
     @State private var telefon = ""
     @State private var eroare: String?
     @State private var seTrimite = false
+    @State private var arataSetariServer = false
 
     private var titlu: String { rol == .business ? "Cont Business" : "Cont Personal" }
 
@@ -154,6 +164,10 @@ private struct FormularAutentificare: View {
                     Text(eroare)
                         .font(.footnote)
                         .foregroundStyle(.red)
+                    Button("Schimbă adresa serverului") { arataSetariServer = true }
+                        .font(.footnote)
+                } footer: {
+                    Text("Server: \(Config.textServer)")
                 }
             }
 
@@ -185,6 +199,12 @@ private struct FormularAutentificare: View {
             ToolbarItem(placement: .topBarLeading) {
                 Button("Înapoi", systemImage: "chevron.left", action: inapoi)
             }
+            ToolbarItem(placement: .topBarTrailing) {
+                Button("Server", systemImage: "server.rack") { arataSetariServer = true }
+            }
+        }
+        .sheet(isPresented: $arataSetariServer) {
+            NavigationStack { SetariServerView() }
         }
     }
 

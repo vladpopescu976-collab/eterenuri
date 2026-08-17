@@ -17,9 +17,19 @@ pur și simplu, fără vreun mesaj care să spună de ce.
 
 ## Pe un iPhone real
 
-Telefonul nu vede loopback-ul Mac-ului. Schimbă `EterenuriApiURL` din
-`ios/Eterenuri/Info.plist` cu adresa Mac-ului în rețea (o vezi la pornirea lui
-`next dev`, ex. `http://192.168.1.130:3000`) sau cu adresa de producție.
+Pe telefon, `127.0.0.1` înseamnă telefonul însuși, nu calculatorul.
+
+Adresa se schimbă **din aplicație**, fără recompilare: butonul **Server** din
+colțul din dreapta sus al ecranului de autentificare. Pune acolo adresa
+calculatorului în rețea — cea afișată de `npm run dev` la „Network” — și apasă
+„Testează conexiunea”.
+
+Adresa se schimbă la fiecare rețea nouă, de aceea e o setare și nu o constantă.
+Valoarea implicită vine din `EterenuriApiURL` în `ios/Eterenuri/Info.plist`.
+
+La prima conectare, iOS cere permisiunea „Rețea locală” — trebuie acceptată,
+altfel cererile sunt blocate în tăcere. Calculatorul și telefonul trebuie să fie
+în aceeași rețea.
 
 Pentru producție folosește **https**, iar excepția `NSAllowsLocalNetworking`
 din Info.plist poate fi scoasă.
