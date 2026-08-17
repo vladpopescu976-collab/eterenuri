@@ -117,6 +117,8 @@ export function ScheduleClient({
   const isToday = isoDate(selectedDate) === isoDate(new Date());
   const weekdayFmt = new Intl.DateTimeFormat("ro-RO", { weekday: "long" });
   const longDateFmt = new Intl.DateTimeFormat("ro-RO", { day: "numeric", month: "long", year: "numeric" });
+  // Etichetă scurtă pentru butonul din mijloc, ca să nu lățească bara.
+  const shortDateFmt = new Intl.DateTimeFormat("ro-RO", { day: "numeric", month: "short" });
 
   return (
     <div className="space-y-4">
@@ -135,16 +137,23 @@ export function ScheduleClient({
               <ChevronLeft className="h-4 w-4" />
               <span className="hidden sm:inline">Ziua anterioară</span>
             </button>
+            {/* Butonul arată ziua la care te uiți; scrie „Azi” doar când chiar
+                ești pe ziua curentă. Când ești pe altă zi, apăsarea te aduce
+                înapoi la azi. */}
             <button
               type="button"
+              disabled={isToday}
+              title={isToday ? "Te uiți la ziua de azi" : "Înapoi la azi"}
               onClick={() => setSelectedDate(new Date())}
               className={
-                "flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[12.5px] font-medium " +
-                (isToday ? "bg-primary/10 text-primary" : "hover:bg-muted")
+                "flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[12.5px] font-medium tabular-nums " +
+                (isToday
+                  ? "bg-primary/10 text-primary"
+                  : "text-foreground hover:bg-muted")
               }
             >
               <CalendarDays className="h-3.5 w-3.5" />
-              Azi
+              {isToday ? "Azi" : shortDateFmt.format(selectedDate)}
             </button>
             <button
               type="button"
