@@ -2,12 +2,14 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronLeft, ChevronRight, CalendarDays, Clock3, Lock, Plus, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronDown, CalendarDays, Clock3, Lock, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { StatusBadge } from "@/components/dashboard/status-badge";
 import { RescheduleDialog } from "@/components/dashboard/reschedule-dialog";
 import { BlockSlotDialog } from "@/components/dashboard/block-slot-dialog";
+import { DayHeatPicker } from "@/components/dashboard/day-heat-picker";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { unblockSlot } from "@/lib/actions/blocked-slots";
 import { toDateInput, toTimeInput } from "@/lib/datetime";
 import { sportMeta } from "@/lib/sports";
@@ -91,7 +93,23 @@ export function ScheduleClient({
   const [selected, setSelected] = useState<Booking | null>(null);
   const [rescheduling, setRescheduling] = useState<Booking | null>(null);
   const [blockOpen, setBlockOpen] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
+
+  // Ce ocupă efectiv terenul: rezervările active plus orele blocate manual.
+  const heatIntervals = useMemo(
+    () => [
+      ...bookings
+        .filter((b) => b.status === "PENDING" || b.status === "CONFIRMED")
+        .map((b) => ({ fieldId: b.field.id, startTime: b.startTime, endTime: b.endTime })),
+      ...blockedSlots.map((s) => ({
+        fieldId: s.fieldId,
+        startTime: s.startTime,
+        endTime: s.endTime,
+      })),
+    ],
+    [bookings, blockedSlots]
+  );
 
   const dayBookings = useMemo(
     () => bookings.filter((b) => isoDate(b.startTime) === isoDate(selectedDate)),
@@ -137,25 +155,52 @@ export function ScheduleClient({
               <ChevronLeft className="h-4 w-4" />
               <span className="hidden sm:inline">Ziua anterioară</span>
             </button>
-            {/* Data vizitată se vede mereu, ca să știi unde ești fără să te
-                uiți în altă parte. Când ești pe ziua curentă apare și „Azi”,
-                iar în rest apăsarea te aduce înapoi la azi. */}
-            <button
-              type="button"
-              disabled={isToday}
-              title={isToday ? "Te uiți la ziua de azi" : "Înapoi la azi"}
-              onClick={() => setSelectedDate(new Date())}
-              className={
-                "flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[12.5px] font-medium tabular-nums " +
-                (isToday
-                  ? "bg-primary/10 text-primary"
-                  : "text-foreground hover:bg-muted")
-              }
-            >
-              <CalendarDays className="h-3.5 w-3.5" />
-              {isToday && <span>Azi ·</span>}
-              {shortDateFmt.format(selectedDate)}
-            </button>
+            {/* Data vizitată se vede mereu, iar apăsarea deschide un calendar
+                în care zilele sunt colorate după cât de ocupate sunt. */}
+            <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
+              <PopoverTrigger
+                render={
+                  <button
+                    type="button"
+                    title="Alege ziua"
+                    className={
+                      "flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[12.5px] font-medium tabular-nums " +
+                      (isToday ? "bg-primary/10 text-primary" : "text-foreground hover:bg-muted")
+                    }
+                  />
+                }
+              >
+                <CalendarDays className="h-3.5 w-3.5" />
+                {isToday && <span>Azi ·</span>}
+                {shortDateFmt.format(selectedDate)}
+                <ChevronDown className="h-3 w-3 opacity-60" />
+              </PopoverTrigger>
+              <PopoverContent align="center" className="w-auto p-0">
+                <DayHeatPicker
+                  fields={fields}
+                  intervals={heatIntervals}
+                  selectedDate={selectedDate}
+                  onSelect={(date) => {
+                    setSelectedDate(date);
+                    setPickerOpen(false);
+                  }}
+                />
+                {!isToday && (
+                  <div className="border-t p-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedDate(new Date());
+                        setPickerOpen(false);
+                      }}
+                      className="w-full rounded-md px-2 py-1.5 text-[12px] font-medium text-primary hover:bg-primary/10"
+                    >
+                      Înapoi la azi
+                    </button>
+                  </div>
+                )}
+              </PopoverContent>
+            </Popover>
             <button
               type="button"
               onClick={() => setSelectedDate((d) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1))}
