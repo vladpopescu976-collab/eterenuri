@@ -9,6 +9,7 @@ import {
   CalendarDays,
   ClipboardList,
   Settings2,
+  Star,
   LogOut,
   ArrowLeft,
 } from "lucide-react";
@@ -20,6 +21,7 @@ const NAV = [
   { href: "/dashboard/business", label: "Privire de ansamblu", icon: LayoutDashboard },
   { href: "/dashboard/business/orar", label: "Calendar & Orar", icon: CalendarDays },
   { href: "/dashboard/business/rezervari", label: "Rezervări", icon: ClipboardList, key: "bookings" },
+  { href: "/dashboard/business/recenzii", label: "Recenzii", icon: Star },
   { href: "/dashboard/business/terenuri", label: "Setări terenuri", icon: Settings2 },
 ];
 

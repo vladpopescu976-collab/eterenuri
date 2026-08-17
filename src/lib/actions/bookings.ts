@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import type { Prisma } from "@prisma/client";
 
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
@@ -21,14 +22,38 @@ async function requireSession() {
 
 // Baza de date respinge suprapunerile cu eroarea Postgres 23P01. O prindem ca
 // să îi arătăm clientului un mesaj în română, nu o eroare tehnică.
+function errorText(error: unknown): string {
+  return error instanceof Error ? error.message : typeof error === "string" ? error : "";
+}
+
 function isOverlapViolation(error: unknown): boolean {
-  const text =
-    error instanceof Error ? `${error.message}` : typeof error === "string" ? error : "";
+  const text = errorText(error);
   return text.includes("23P01") || text.includes("bookings_no_overlap");
+}
+
+function isBlockedSlotViolation(error: unknown): boolean {
+  return errorText(error).includes("BOOKING_ON_BLOCKED_SLOT");
 }
 
 const OVERLAP_MESSAGE =
   "Intervalul ales tocmai a fost rezervat de altcineva. Alege alt interval.";
+const BLOCKED_MESSAGE =
+  "Intervalul ales tocmai a fost blocat de proprietarul terenului. Alege alt interval.";
+
+function overlapMessage(error: unknown): string {
+  return isBlockedSlotViolation(error) ? BLOCKED_MESSAGE : OVERLAP_MESSAGE;
+}
+
+// Serializează scrierile pe același teren. Fără asta, două cereri simultane pot
+// trece amândouă de verificările din cod, iar garanția rămâne doar la nivelul
+// bazei — care pentru orele blocate se face prin trigger, nu prin index, deci
+// nu ar rezista singură la concurență.
+async function lockField(
+  tx: Prisma.TransactionClient,
+  fieldId: string
+): Promise<void> {
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${fieldId}))`;
+}
 
 async function assertOwnsAsCustomer(bookingId: string, customerId: string) {
   const booking = await prisma.booking.findUnique({ where: { id: bookingId } });
@@ -70,40 +95,51 @@ export async function createBookingRequest(
       return fail("Nu poți rezerva un interval din trecut.");
     }
 
-    // Verificarea asta prinde cazul obișnuit și dă un mesaj mai bun, dar nu
-    // poate opri două cereri simultane — între citire și scriere e o fereastră
-    // în care ambele văd terenul liber. Garanția reală o dă constrângerea din
-    // baza de date, prinsă mai jos.
-    const overlap = await prisma.booking.findFirst({
-      where: {
-        fieldId: field.id,
-        status: { in: [...ACTIVE_STATUSES] },
-        startTime: { lt: endTime },
-        endTime: { gt: startTime },
-      },
-    });
-    if (overlap) {
-      return fail("Intervalul ales se suprapune cu o altă rezervare. Alege alt interval.");
-    }
-
     const hours = (endTime.getTime() - startTime.getTime()) / 3_600_000;
     const totalPrice = Number(field.pricePerHour) * hours;
 
     let booking;
     try {
-      booking = await prisma.booking.create({
-        data: {
-          fieldId: field.id,
-          customerId: session.user.id,
-          startTime,
-          endTime,
-          totalPrice,
-          notes: data.notes?.trim() || null,
-          status: "PENDING",
-        },
+      booking = await prisma.$transaction(async (tx) => {
+        await lockField(tx, field.id);
+
+        const overlap = await tx.booking.findFirst({
+          where: {
+            fieldId: field.id,
+            status: { in: [...ACTIVE_STATUSES] },
+            startTime: { lt: endTime },
+            endTime: { gt: startTime },
+          },
+        });
+        if (overlap) throw new ActionError("Intervalul ales se suprapune cu o altă rezervare. Alege alt interval.");
+
+        const blocked = await tx.blockedSlot.findFirst({
+          where: {
+            fieldId: field.id,
+            startTime: { lt: endTime },
+            endTime: { gt: startTime },
+          },
+        });
+        if (blocked) {
+          throw new ActionError(
+            "Intervalul ales este blocat de proprietarul terenului. Alege alt interval."
+          );
+        }
+
+        return tx.booking.create({
+          data: {
+            fieldId: field.id,
+            customerId: session.user.id,
+            startTime,
+            endTime,
+            totalPrice,
+            notes: data.notes?.trim() || null,
+            status: "PENDING",
+          },
+        });
       });
     } catch (error) {
-      if (isOverlapViolation(error)) return fail(OVERLAP_MESSAGE);
+      if (isOverlapViolation(error)) return fail(overlapMessage(error));
       throw error;
     }
 
@@ -130,24 +166,36 @@ export async function getBookedSlots(
 ): Promise<ActionResult<{ start: string; end: string }[]>> {
   try {
     const data = bookedSlotsSchema.parse(input);
+    const dayStart = new Date(data.dayStart);
+    const dayEnd = new Date(data.dayEnd);
 
-    const bookings = await prisma.booking.findMany({
-      where: {
-        fieldId: data.fieldId,
-        status: { in: [...ACTIVE_STATUSES] },
-        startTime: { lt: new Date(data.dayEnd) },
-        endTime: { gt: new Date(data.dayStart) },
-        ...(data.excludeBookingId ? { NOT: { id: data.excludeBookingId } } : {}),
-      },
-      select: { startTime: true, endTime: true },
-      orderBy: { startTime: "asc" },
-    });
+    // Orele blocate de proprietar ocupă terenul exact ca o rezervare, deci
+    // trebuie să apară la fel de indisponibile în formular.
+    const [bookings, blocked] = await Promise.all([
+      prisma.booking.findMany({
+        where: {
+          fieldId: data.fieldId,
+          status: { in: [...ACTIVE_STATUSES] },
+          startTime: { lt: dayEnd },
+          endTime: { gt: dayStart },
+          ...(data.excludeBookingId ? { NOT: { id: data.excludeBookingId } } : {}),
+        },
+        select: { startTime: true, endTime: true },
+      }),
+      prisma.blockedSlot.findMany({
+        where: {
+          fieldId: data.fieldId,
+          startTime: { lt: dayEnd },
+          endTime: { gt: dayStart },
+        },
+        select: { startTime: true, endTime: true },
+      }),
+    ]);
 
     return ok(
-      bookings.map((b) => ({
-        start: b.startTime.toISOString(),
-        end: b.endTime.toISOString(),
-      }))
+      [...bookings, ...blocked]
+        .sort((a, b) => a.startTime.getTime() - b.startTime.getTime())
+        .map((s) => ({ start: s.startTime.toISOString(), end: s.endTime.toISOString() }))
     );
   } catch (error) {
     return toActionError("getBookedSlots", error);
@@ -230,39 +278,54 @@ export async function updateBookingTime(
       );
     }
 
-    const overlap = await prisma.booking.findFirst({
-      where: {
-        fieldId: booking.fieldId,
-        id: { not: booking.id },
-        status: { in: [...ACTIVE_STATUSES] },
-        startTime: { lt: endTime },
-        endTime: { gt: startTime },
-      },
-    });
-    if (overlap) {
-      return fail("Intervalul ales se suprapune cu o altă rezervare. Alege alt interval.");
-    }
-
     const hours = (endTime.getTime() - startTime.getTime()) / 3_600_000;
     const totalPrice = Number(field.pricePerHour) * hours;
 
     try {
-      await prisma.booking.update({
-        where: { id: booking.id },
-        data: {
-          startTime,
-          endTime,
-          totalPrice,
-          // Rezervarea mutată de client pleacă din nou spre aprobare, iar o
-          // eventuală propunere a proprietarului nu mai are obiect.
-          status: "PENDING",
-          proposedStartTime: null,
-          proposedEndTime: null,
-          rescheduleNote: null,
-        },
+      await prisma.$transaction(async (tx) => {
+        await lockField(tx, booking.fieldId);
+
+        const overlap = await tx.booking.findFirst({
+          where: {
+            fieldId: booking.fieldId,
+            id: { not: booking.id },
+            status: { in: [...ACTIVE_STATUSES] },
+            startTime: { lt: endTime },
+            endTime: { gt: startTime },
+          },
+        });
+        if (overlap) throw new ActionError("Intervalul ales se suprapune cu o altă rezervare. Alege alt interval.");
+
+        const blocked = await tx.blockedSlot.findFirst({
+          where: {
+            fieldId: booking.fieldId,
+            startTime: { lt: endTime },
+            endTime: { gt: startTime },
+          },
+        });
+        if (blocked) {
+          throw new ActionError(
+            "Intervalul ales este blocat de proprietarul terenului. Alege alt interval."
+          );
+        }
+
+        await tx.booking.update({
+          where: { id: booking.id },
+          data: {
+            startTime,
+            endTime,
+            totalPrice,
+            // Rezervarea mutată de client pleacă din nou spre aprobare, iar o
+            // eventuală propunere a proprietarului nu mai are obiect.
+            status: "PENDING",
+            proposedStartTime: null,
+            proposedEndTime: null,
+            rescheduleNote: null,
+          },
+        });
       });
     } catch (error) {
-      if (isOverlapViolation(error)) return fail(OVERLAP_MESSAGE);
+      if (isOverlapViolation(error)) return fail(overlapMessage(error));
       throw error;
     }
 

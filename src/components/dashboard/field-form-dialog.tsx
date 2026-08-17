@@ -302,7 +302,10 @@ export function FieldFormDialog({
               <Label>Sport</Label>
               <Select value={form.sportType} onValueChange={(v) => v && set("sportType", v as SportType)}>
                 <SelectTrigger className="mt-1.5 w-full">
-                  <SelectValue />
+                  {/* Fără funcția asta, Base UI afișa valoarea brută („FOOTBALL”). */}
+                  <SelectValue>
+                    {(value) => sportOptions.find((s) => s.value === value)?.label ?? ""}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {sportOptions.map((s) => (

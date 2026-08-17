@@ -25,8 +25,13 @@ function isSameMonth(a: Date, b: Date) {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth();
 }
 
+// Gruparea pe zile trebuie făcută în fusul utilizatorului. Cu `toISOString()`
+// o rezervare de la 01:00 noaptea cădea în ziua precedentă (UTC), deci apărea
+// în grafic într-o zi, iar în listă în alta.
 function isoDate(d: Date) {
-  return d.toISOString().slice(0, 10);
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${month}-${day}`;
 }
 
 function addDays(d: Date, days: number) {

@@ -11,11 +11,18 @@ export default async function BusinessSchedulePage() {
   const session = await auth();
   const ownerId = session!.user.id;
 
-  const [fields, bookings] = await Promise.all([
-    prisma.field.findMany({ where: { ownerId }, select: { id: true, name: true, sportType: true } }),
+  const [fields, bookings, blockedSlots] = await Promise.all([
+    prisma.field.findMany({
+      where: { ownerId },
+      select: { id: true, name: true, sportType: true, openingHour: true, closingHour: true },
+    }),
     prisma.booking.findMany({
       where: { field: { ownerId } },
       include: { customer: { select: { name: true } }, field: { select: { id: true, name: true } } },
+    }),
+    prisma.blockedSlot.findMany({
+      where: { field: { ownerId } },
+      select: { id: true, fieldId: true, startTime: true, endTime: true, reason: true },
     }),
   ]);
 
@@ -23,6 +30,7 @@ export default async function BusinessSchedulePage() {
     <ScheduleClient
       fields={fields}
       bookings={bookings.map((b) => ({ ...b, totalPrice: Number(b.totalPrice) }))}
+      blockedSlots={blockedSlots}
     />
   );
 }

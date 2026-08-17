@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { AnimatePresence, motion, useMotionValueEvent, useScroll } from "framer-motion";
-import { CalendarCheck, LayoutDashboard, LogOut, Menu, User as UserIcon, X } from "lucide-react";
+import { CalendarCheck, Heart, LayoutDashboard, LogOut, Menu, User as UserIcon, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -168,6 +168,12 @@ export function Navbar() {
                     <AccountIcon className="h-4 w-4" />
                     {accountLabel}
                   </DropdownMenuItem>
+                  {!isBusiness && (
+                    <DropdownMenuItem render={<Link href="/favorite" />}>
+                      <Heart className="h-4 w-4" />
+                      Terenuri favorite
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem
                     variant="destructive"
                     onClick={() => signOut({ callbackUrl: "/" })}

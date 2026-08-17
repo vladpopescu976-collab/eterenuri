@@ -10,6 +10,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { FieldCard } from "@/components/field-card";
 import { SearchFilters } from "@/components/search-filters";
 import { sportMeta } from "@/lib/sports";
+import { dayRangeInAppZone } from "@/lib/datetime";
+import { getFavoriteFieldIds } from "@/lib/favorites";
 
 // Baza Prisma Postgres se suspenda cand e inactiva, iar prima cerere
 // care o trezeste poate dura ~30s. Implicit Vercel taie functia la 10s,
@@ -44,6 +46,7 @@ function ResultsSkeleton() {
 }
 
 async function Results({ sport, oras, pretMax, data }: SearchParams) {
+  const favoriteIds = await getFavoriteFieldIds();
   const where: Prisma.FieldWhereInput = { isActive: true };
 
   if (isSportType(sport)) where.sportType = sport;
@@ -57,9 +60,14 @@ async function Results({ sport, oras, pretMax, data }: SearchParams) {
   // Când e aleasă o dată, aducem rezervările din ziua respectivă ca să putem
   // exclude terenurile deja ocupate complet. Fără dată, folosim un interval
   // gol (epoch → epoch), deci lista de rezervări vine goală și nu filtrăm.
+  //
+  // Ziua e calculată în fusul României, nu în cel al serverului: pe Vercel
+  // serverul merge pe UTC, deci fereastra era decalată cu câteva ore și
+  // rezervările de seara cădeau în ziua următoare.
   const epoch = new Date(0);
-  const dayStart = data ? new Date(`${data}T00:00:00`) : epoch;
-  const dayEnd = data ? new Date(dayStart.getTime() + 24 * 60 * 60 * 1000) : epoch;
+  const range = data ? dayRangeInAppZone(data) : null;
+  const dayStart = range?.start ?? epoch;
+  const dayEnd = range?.end ?? epoch;
 
   const fields = await prisma.field.findMany({
     where,
@@ -68,19 +76,29 @@ async function Results({ sport, oras, pretMax, data }: SearchParams) {
       bookings: {
         where: {
           status: { in: ["PENDING", "CONFIRMED"] },
-          startTime: { gte: dayStart, lt: dayEnd },
+          // O rezervare începută seara devreme și terminată după miezul nopții
+          // atinge ziua căutată chiar dacă nu începe în ea.
+          startTime: { lt: dayEnd },
+          endTime: { gt: dayStart },
         },
         select: { startTime: true, endTime: true },
       },
     },
   });
 
-  const visible = data
+  const visible = range
     ? fields.filter((field) => {
-        const bookedHours = field.bookings.reduce(
-          (sum, b) => sum + (b.endTime.getTime() - b.startTime.getTime()) / 3_600_000,
-          0
-        );
+        // Numărăm doar orele ocupate care cad în programul terenului — altfel
+        // o rezervare din afara programului putea „umple” ziua degeaba.
+        const openFrom = new Date(dayStart.getTime() + field.openingHour * 3_600_000);
+        const openTo = new Date(dayStart.getTime() + field.closingHour * 3_600_000);
+
+        const bookedHours = field.bookings.reduce((sum, b) => {
+          const from = Math.max(b.startTime.getTime(), openFrom.getTime());
+          const to = Math.min(b.endTime.getTime(), openTo.getTime());
+          return sum + Math.max(0, to - from) / 3_600_000;
+        }, 0);
+
         return bookedHours < field.closingHour - field.openingHour;
       })
     : fields;
@@ -113,6 +131,7 @@ async function Results({ sport, oras, pretMax, data }: SearchParams) {
           <FieldCard
             key={field.id}
             index={index}
+            isFavorite={favoriteIds ? favoriteIds.has(field.id) : undefined}
             field={{
               id: field.id,
               name: field.name,

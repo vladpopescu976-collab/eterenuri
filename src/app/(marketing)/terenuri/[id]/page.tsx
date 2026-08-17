@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { BookingForm } from "@/components/booking-form";
 import { FieldImage } from "@/components/field-image";
+import { FavoriteButton } from "@/components/favorite-button";
+import { Stars } from "@/components/reviews";
 import { sportMeta } from "@/lib/sports";
 
 // Baza Prisma Postgres se suspenda cand e inactiva, iar prima cerere
@@ -17,7 +19,16 @@ export const maxDuration = 60;
 
 export default async function FieldDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [field, session] = await Promise.all([prisma.field.findUnique({ where: { id } }), auth()]);
+  const [field, session, reviews] = await Promise.all([
+    prisma.field.findUnique({ where: { id } }),
+    auth(),
+    prisma.review.findMany({
+      where: { fieldId: id },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+      include: { author: { select: { name: true } } },
+    }),
+  ]);
 
   if (!field) {
     notFound();
@@ -33,6 +44,19 @@ export default async function FieldDetailPage({ params }: { params: Promise<{ id
 
   const meta = sportMeta[field.sportType];
   const SportIcon = meta.icon;
+
+  const isPersonal = session?.user?.role === "PERSONAL";
+  const favorite = isPersonal
+    ? !!(await prisma.favorite.findUnique({
+        where: { userId_fieldId: { userId: session.user.id, fieldId: field.id } },
+        select: { id: true },
+      }))
+    : false;
+
+  const average =
+    reviews.length > 0
+      ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
+      : 0;
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10">
@@ -83,6 +107,15 @@ export default async function FieldDetailPage({ params }: { params: Promise<{ id
               {!field.isActive && <Badge variant="outline">Indisponibil</Badge>}
             </div>
             <h1 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">{field.name}</h1>
+            {reviews.length > 0 && (
+              <p className="mt-1.5 flex items-center gap-2 text-[13.5px]">
+                <Stars value={average} />
+                <span className="font-medium">{average.toFixed(1)}</span>
+                <span className="text-muted-foreground">
+                  ({reviews.length} {reviews.length === 1 ? "recenzie" : "recenzii"})
+                </span>
+              </p>
+            )}
             <p className="mt-1 flex items-center gap-1.5 text-muted-foreground">
               <MapPin className="h-4 w-4" />
               {field.address}, {field.city}
@@ -113,6 +146,47 @@ export default async function FieldDetailPage({ params }: { params: Promise<{ id
               </div>
             </div>
           )}
+          <div>
+            <h2 className="font-semibold">Recenzii</h2>
+            {reviews.length === 0 ? (
+              <p className="mt-2 text-[14px] text-muted-foreground">
+                Terenul nu are încă recenzii. Prima poate fi a ta, după ce joci aici.
+              </p>
+            ) : (
+              <ul className="mt-3 space-y-4">
+                {reviews.map((review) => (
+                  <li key={review.id} className="rounded-xl border p-4">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Stars value={review.rating} />
+                      <span className="text-[13.5px] font-medium">{review.author.name}</span>
+                      <span className="text-[12px] text-muted-foreground">
+                        {review.createdAt.toLocaleDateString("ro-RO", {
+                          day: "numeric",
+                          month: "long",
+                          year: "numeric",
+                        })}
+                      </span>
+                    </div>
+                    {review.comment && (
+                      <p className="mt-2 text-[14px] leading-relaxed text-muted-foreground">
+                        {review.comment}
+                      </p>
+                    )}
+                    {review.ownerReply && (
+                      <div className="mt-3 border-l-2 border-primary/40 pl-3">
+                        <p className="text-[12.5px] font-medium text-primary">
+                          Răspunsul proprietarului
+                        </p>
+                        <p className="mt-0.5 text-[13.5px] text-muted-foreground">
+                          {review.ownerReply}
+                        </p>
+                      </div>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </div>
 
         <div className="lg:sticky lg:top-20 lg:h-fit">
@@ -131,6 +205,12 @@ export default async function FieldDetailPage({ params }: { params: Promise<{ id
                 <Pencil className="h-3.5 w-3.5" />
                 Modifică terenul
               </Button>
+            </div>
+          )}
+
+          {isPersonal && (
+            <div className="mb-4">
+              <FavoriteButton fieldId={field.id} initialFavorite={favorite} variant="full" />
             </div>
           )}
 

@@ -21,6 +21,7 @@ export default async function MyBookingsPage() {
       field: {
         select: { id: true, name: true, city: true, openingHour: true, closingHour: true },
       },
+      review: { select: { rating: true, comment: true, ownerReply: true } },
     },
     orderBy: { startTime: "desc" },
   });

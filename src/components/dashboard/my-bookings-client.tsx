@@ -7,6 +7,7 @@ import { toast } from "sonner";
 
 import { StatusBadge } from "@/components/dashboard/status-badge";
 import { EditBookingDialog } from "@/components/edit-booking-dialog";
+import { ReviewForm, Stars } from "@/components/reviews";
 import { acceptReschedule, cancelBooking, declineReschedule } from "@/lib/actions/bookings";
 import type { BookingStatus } from "@prisma/client";
 
@@ -20,6 +21,7 @@ type Booking = {
   rescheduleNote: string | null;
   totalPrice: number;
   field: { id: string; name: string; city: string; openingHour: number; closingHour: number };
+  review: { rating: number; comment: string | null; ownerReply: string | null } | null;
 };
 
 function fmtDateTime(d: Date) {
@@ -152,6 +154,29 @@ function BookingRow({ booking }: { booking: Booking }) {
             <Ban className="h-3.5 w-3.5" />
             Anulează
           </button>
+        </div>
+      )}
+
+      {/* Recenzia se poate lasa doar dupa ce o rezervare confirmata s-a incheiat. */}
+      {isOver && booking.status === "CONFIRMED" && !booking.review && (
+        <ReviewForm bookingId={booking.id} fieldName={booking.field.name} />
+      )}
+
+      {booking.review && (
+        <div className="mt-4 rounded-xl border bg-muted/40 p-3">
+          <div className="flex items-center gap-2">
+            <Stars value={booking.review.rating} />
+            <span className="text-[12px] text-muted-foreground">Recenzia ta</span>
+          </div>
+          {booking.review.comment && (
+            <p className="mt-1.5 text-[12.5px] text-muted-foreground">{booking.review.comment}</p>
+          )}
+          {booking.review.ownerReply && (
+            <div className="mt-2 border-l-2 border-primary/40 pl-2.5">
+              <p className="text-[11.5px] font-medium text-primary">Răspunsul proprietarului</p>
+              <p className="mt-0.5 text-[12.5px] text-muted-foreground">{booking.review.ownerReply}</p>
+            </div>
+          )}
         </div>
       )}
 

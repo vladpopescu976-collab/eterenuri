@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { MapPin } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
+import { FavoriteButton } from "@/components/favorite-button";
 import { sportMeta } from "@/lib/sports";
 import type { SportType } from "@prisma/client";
 
@@ -18,7 +19,16 @@ export type FieldCardData = {
   images: string[];
 };
 
-export function FieldCard({ field, index = 0 }: { field: FieldCardData; index?: number }) {
+export function FieldCard({
+  field,
+  index = 0,
+  isFavorite,
+}: {
+  field: FieldCardData;
+  index?: number;
+  /** Lipsește pentru vizitatori și conturi Business — inima nu se afișează. */
+  isFavorite?: boolean;
+}) {
   const meta = sportMeta[field.sportType];
   const SportIcon = meta.icon;
   const coverImage = field.images[0];
@@ -30,8 +40,11 @@ export function FieldCard({ field, index = 0 }: { field: FieldCardData; index?: 
       viewport={{ once: true, margin: "-40px" }}
       transition={{ duration: 0.5, delay: index * 0.06, ease: [0.22, 1, 0.36, 1] as const }}
       whileHover={{ y: -6 }}
-      className="group"
+      className="group relative"
     >
+      {isFavorite !== undefined && (
+        <FavoriteButton fieldId={field.id} initialFavorite={isFavorite} />
+      )}
       <Link
         href={`/terenuri/${field.id}`}
         className="block overflow-hidden rounded-2xl border bg-card shadow-sm transition-shadow duration-300 group-hover:shadow-xl group-hover:shadow-primary/10"

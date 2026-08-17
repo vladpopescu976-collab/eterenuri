@@ -45,3 +45,53 @@ export function toTimeInput(value: Date): string {
   const minutes = String(value.getMinutes()).padStart(2, "0");
   return `${hours}:${minutes}`;
 }
+
+// Terenurile sunt în România, deci o „zi” înseamnă o zi de la noi. Pe server nu
+// putem folosi fusul mașinii (pe Vercel e UTC), așa că îl fixăm explicit.
+export const APP_TIME_ZONE = "Europe/Bucharest";
+
+function zoneOffsetMs(instant: Date, timeZone: string): number {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    hour12: false,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).formatToParts(instant);
+
+  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? "0");
+  const asUtc = Date.UTC(
+    get("year"),
+    get("month") - 1,
+    get("day"),
+    get("hour") % 24,
+    get("minute"),
+    get("second")
+  );
+  return asUtc - instant.getTime();
+}
+
+/**
+ * Intervalul [început, sfârșit) al unei zile calendaristice din România,
+ * indiferent de fusul serverului. Întoarce null dacă data nu e validă.
+ */
+export function dayRangeInAppZone(date: string): { start: Date; end: Date } | null {
+  const m = DATE_RE.exec(date.trim());
+  if (!m) return null;
+
+  const naive = Date.parse(`${date}T00:00:00Z`);
+  if (Number.isNaN(naive)) return null;
+
+  // Două treceri, ca să fie corect și în zilele când se schimbă ora.
+  let startMs = naive - zoneOffsetMs(new Date(naive), APP_TIME_ZONE);
+  startMs = naive - zoneOffsetMs(new Date(startMs), APP_TIME_ZONE);
+
+  const nextDay = Date.parse(`${date}T00:00:00Z`) + 24 * 60 * 60 * 1000;
+  let endMs = nextDay - zoneOffsetMs(new Date(nextDay), APP_TIME_ZONE);
+  endMs = nextDay - zoneOffsetMs(new Date(endMs), APP_TIME_ZONE);
+
+  return { start: new Date(startMs), end: new Date(endMs) };
+}

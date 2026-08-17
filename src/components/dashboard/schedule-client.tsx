@@ -1,13 +1,17 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronLeft, ChevronRight, CalendarDays, Clock3 } from "lucide-react";
+import { ChevronLeft, ChevronRight, CalendarDays, Clock3, Lock, Plus, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 
 import { StatusBadge } from "@/components/dashboard/status-badge";
 import { RescheduleDialog } from "@/components/dashboard/reschedule-dialog";
+import { BlockSlotDialog } from "@/components/dashboard/block-slot-dialog";
+import { unblockSlot } from "@/lib/actions/blocked-slots";
 import { toDateInput, toTimeInput } from "@/lib/datetime";
-import type { BookingStatus } from "@prisma/client";
+import { sportMeta } from "@/lib/sports";
+import type { BookingStatus, SportType } from "@prisma/client";
 
 const START_HOUR = 8;
 const END_HOUR = 23;
@@ -58,15 +62,57 @@ function fmtHour(h: number) {
   return `${String(hour).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
 }
 
-export function ScheduleClient({ fields, bookings }: { fields: { id: string; name: string; sportType: string }[]; bookings: Booking[] }) {
+type BlockedSlot = {
+  id: string;
+  fieldId: string;
+  startTime: Date;
+  endTime: Date;
+  reason: string | null;
+};
+
+type ScheduleField = {
+  id: string;
+  name: string;
+  sportType: string;
+  openingHour: number;
+  closingHour: number;
+};
+
+export function ScheduleClient({
+  fields,
+  bookings,
+  blockedSlots,
+}: {
+  fields: ScheduleField[];
+  bookings: Booking[];
+  blockedSlots: BlockedSlot[];
+}) {
   const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [selected, setSelected] = useState<Booking | null>(null);
   const [rescheduling, setRescheduling] = useState<Booking | null>(null);
+  const [blockOpen, setBlockOpen] = useState(false);
+  const [isPending, startTransition] = useTransition();
 
   const dayBookings = useMemo(
     () => bookings.filter((b) => isoDate(b.startTime) === isoDate(selectedDate)),
     [bookings, selectedDate]
   );
+
+  const dayBlocked = useMemo(
+    () => blockedSlots.filter((s) => isoDate(s.startTime) === isoDate(selectedDate)),
+    [blockedSlots, selectedDate]
+  );
+
+  function removeBlock(id: string) {
+    startTransition(async () => {
+      const result = await unblockSlot(id);
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success("Intervalul a fost deblocat.");
+    });
+  }
 
   const isToday = isoDate(selectedDate) === isoDate(new Date());
   const weekdayFmt = new Intl.DateTimeFormat("ro-RO", { weekday: "long" });
@@ -109,6 +155,17 @@ export function ScheduleClient({ fields, bookings }: { fields: { id: string; nam
               <ChevronRight className="h-4 w-4" />
             </button>
           </div>
+
+          {fields.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setBlockOpen(true)}
+              className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-[12.5px] font-medium text-primary-foreground hover:opacity-90"
+            >
+              <Plus className="h-4 w-4" />
+              Blochează ore
+            </button>
+          )}
         </div>
       </div>
 
@@ -127,7 +184,9 @@ export function ScheduleClient({ fields, bookings }: { fields: { id: string; nam
               {fields.map((f) => (
                 <div key={f.id} className="border-l px-3 py-3">
                   <p className="truncate text-[12px] font-semibold">{f.name}</p>
-                  <p className="truncate text-[10.5px] text-muted-foreground">{f.sportType}</p>
+                  <p className="truncate text-[10.5px] text-muted-foreground">
+                    {sportMeta[f.sportType as SportType]?.label ?? f.sportType}
+                  </p>
                 </div>
               ))}
             </div>
@@ -148,6 +207,46 @@ export function ScheduleClient({ fields, bookings }: { fields: { id: string; nam
                   {HOURS.map((h) => (
                     <div key={h} style={{ height: HOUR_HEIGHT }} className="border-b" />
                   ))}
+
+                  {dayBlocked
+                    .filter((s) => s.fieldId === field.id)
+                    .map((s) => {
+                      const start = hourOf(s.startTime);
+                      const end = hourOf(s.endTime);
+                      const top = (start - START_HOUR) * HOUR_HEIGHT;
+                      const height = Math.max((end - start) * HOUR_HEIGHT - 4, 30);
+                      return (
+                        <div
+                          key={s.id}
+                          style={{
+                            top,
+                            height,
+                            backgroundImage:
+                              "repeating-linear-gradient(45deg, rgba(100,116,139,0.13) 0 6px, transparent 6px 12px)",
+                          }}
+                          className="group absolute inset-x-1 z-10 flex flex-col items-start overflow-hidden rounded-lg border-l-[3px] border-slate-400 bg-muted px-2 py-1.5 text-left text-muted-foreground shadow-sm"
+                        >
+                          <span className="flex items-center gap-1 truncate text-[11.5px] font-semibold leading-tight">
+                            <Lock className="h-3 w-3 shrink-0" />
+                            {s.reason || "Blocat"}
+                          </span>
+                          <span className="mt-auto truncate font-mono text-[10.5px] leading-tight opacity-80 tabular-nums">
+                            {fmtHour(start)}–{fmtHour(end)}
+                          </span>
+                          <button
+                            type="button"
+                            disabled={isPending}
+                            aria-label="Deblochează intervalul"
+                            title="Deblochează"
+                            onClick={() => removeBlock(s.id)}
+                            className="absolute right-1 top-1 rounded-md p-1 opacity-0 transition-opacity hover:bg-background hover:text-destructive focus-visible:opacity-100 group-hover:opacity-100 disabled:opacity-40"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        </div>
+                      );
+                    })}
+
                   <AnimatePresence>
                     {dayBookings
                       .filter((b) => b.field.id === field.id)
@@ -247,6 +346,15 @@ export function ScheduleClient({ fields, bookings }: { fields: { id: string; nam
           defaultEnd={toTimeInput(rescheduling.endTime)}
           open={!!rescheduling}
           onOpenChange={(open) => !open && setRescheduling(null)}
+        />
+      )}
+
+      {fields.length > 0 && (
+        <BlockSlotDialog
+          fields={fields}
+          defaultDate={selectedDate}
+          open={blockOpen}
+          onOpenChange={setBlockOpen}
         />
       )}
     </div>
