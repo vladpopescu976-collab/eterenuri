@@ -9,6 +9,8 @@ struct RezervaView: View {
     var rezervareExistenta: Rezervare?
     /// Ziua pe care se deschide ecranul; implicit, azi.
     var ziInitiala: Date?
+    /// Ora preselectată — folosită doar de verificările automate.
+    var oraInitiala: Int?
     var laFinal: () -> Void
 
     @Environment(\.dismiss) private var inchide
@@ -58,6 +60,10 @@ struct RezervaView: View {
                 zi = ziInitiala
             }
             await incarcaOre()
+            if let oraInitiala {
+                oraStart = oraInitiala
+                oraSfarsit = oraInitiala + 1
+            }
         }
     }
 
@@ -178,15 +184,67 @@ struct RezervaView: View {
                 }
             }
 
+            if let start = oraStart {
+                selectorDurata(start)
+            }
+
             legenda
         }
         .fisa()
     }
 
+    /// După ce s-a ales începutul, durata e mai ușor de gândit decât o a doua
+    /// oră căutată în grilă. Apar doar duratele care chiar încap.
+    private func selectorDurata(_ start: Int) -> some View {
+        let maxim = maximOreLibere(de: start)
+        return VStack(alignment: .leading, spacing: 8) {
+            Divider()
+            Text("Cât durează?").font(.subheadline.weight(.medium))
+
+            HStack(spacing: 8) {
+                ForEach(1...min(maxim, 4), id: \.self) { ore in
+                    let ales = oraSfarsit == start + ore
+                    Button {
+                        withAnimation(.snappy) {
+                            eroare = nil
+                            oraSfarsit = start + ore
+                        }
+                    } label: {
+                        VStack(spacing: 1) {
+                            Text("\(ore)").font(.subheadline.weight(.semibold))
+                            Text(ore == 1 ? "oră" : "ore").font(.system(size: 9))
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                        .background(ales ? Tema.gradientAccent : nil)
+                        .background(ales ? nil : Tema.fundal)
+                        .foregroundStyle(ales ? .white : .primary)
+                        .clipShape(.rect(cornerRadius: 10, style: .continuous))
+                    }
+                    .apasabil()
+                }
+            }
+
+            if maxim == 1 {
+                Text("După \(format(start + 1)) urmează un interval ocupat.")
+                    .font(.caption2).foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    /// Câte ore la rând sunt libere începând cu ora dată.
+    private func maximOreLibere(de start: Int) -> Int {
+        var total = 0
+        var ora = start
+        while ora < teren.oraInchidere, !esteOcupata(ora) {
+            total += 1
+            ora += 1
+        }
+        return max(1, total)
+    }
+
     private var indicatie: String {
-        if oraStart == nil { return "Alege ora de început" }
-        if oraSfarsit == nil { return "Alege ora de sfârșit" }
-        return "Intervalul ales"
+        oraStart == nil ? "Alege ora de început" : "Intervalul ales"
     }
 
     private var legenda: some View {
@@ -303,20 +361,9 @@ struct RezervaView: View {
 
         withAnimation(.snappy) {
             eroare = nil
-
-            // Prima apăsare fixează începutul, a doua sfârșitul.
-            guard let start = oraStart, oraSfarsit == nil, ora > start else {
-                oraStart = ora
-                oraSfarsit = nil
-                return
-            }
-
-            // Tot intervalul dintre început și ora aleasă trebuie să fie liber.
-            if (start..<ora).contains(where: esteOcupata) {
-                eroare = "Între \(format(start)) și \(format(ora)) există ore ocupate. Alege alt interval."
-                return
-            }
-            oraSfarsit = ora
+            // Apăsarea alege mereu ora de început; durata se alege dedesubt.
+            oraStart = ora
+            oraSfarsit = ora + 1
         }
     }
 

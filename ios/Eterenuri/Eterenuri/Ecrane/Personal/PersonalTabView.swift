@@ -1,6 +1,13 @@
 import SwiftUI
 
 struct PersonalTabView: View {
+    #if DEBUG
+    /// Deschide direct rezervarea unui teren, pentru verificări automate.
+    @State private var terenDebug: String? =
+        ProcessInfo.processInfo.environment["ETERENURI_REZERVA"]
+    @State private var terenIncarcat: Teren?
+    #endif
+
     var body: some View {
         TabView {
             Tab("Caută", systemImage: "magnifyingglass") {
@@ -16,6 +23,27 @@ struct PersonalTabView: View {
                 NavigationStack { ContView() }
             }
         }
+        #if DEBUG
+        .sheet(item: Binding(
+            get: { terenIncarcat },
+            set: { _ in terenIncarcat = nil }
+        )) { teren in
+            NavigationStack {
+                RezervaView(
+                    teren: teren,
+                    ziInitiala: Calendar.current.date(byAdding: .day, value: 1, to: Date()),
+                    oraInitiala: ProcessInfo.processInfo.environment["ETERENURI_ORA"].flatMap(Int.init)
+                ) {}
+            }
+        }
+        .task {
+            guard let id = terenDebug else { return }
+            let detaliu: DetaliuTeren? = try? await ApiClient.shared.cere(
+                "terenuri/\(id)", ca: DetaliuTeren.self
+            )
+            terenIncarcat = detaliu?.teren
+        }
+        #endif
     }
 }
 

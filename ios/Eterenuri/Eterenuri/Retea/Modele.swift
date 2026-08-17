@@ -194,3 +194,9 @@ struct Statistici: Codable, Sendable {
 struct StareFavorit: Codable, Sendable {
     let favorit: Bool
 }
+
+struct OrasDisponibil: Codable, Identifiable, Sendable {
+    let oras: String
+    let terenuri: Int
+    var id: String { oras }
+}

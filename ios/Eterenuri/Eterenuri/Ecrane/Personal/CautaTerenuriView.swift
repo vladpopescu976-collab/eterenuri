@@ -9,10 +9,13 @@ struct CautaTerenuriView: View {
     @State private var sportAles: Sport?
     @State private var pretMax: Double = 0
     @State private var ziAleasa: Date?
+    @State private var oraDeLa: Int?
+    @State private var durataOre = 1
     @State private var arataFiltre = false
 
     private var filtreActive: Int {
-        [!oras.isEmpty, pretMax > 0, ziAleasa != nil].filter { $0 }.count
+        [!oras.isEmpty, pretMax > 0, ziAleasa != nil, sportAles != nil, oraDeLa != nil]
+            .filter { $0 }.count
     }
 
     var body: some View {
@@ -24,14 +27,27 @@ struct CautaTerenuriView: View {
         .navigationDestination(for: String.self) { DetaliuTerenView(terenId: $0) }
         .sheet(isPresented: $arataFiltre) {
             NavigationStack {
-                FiltreView(oras: $oras, pretMax: $pretMax, ziAleasa: $ziAleasa) {
-                    Task { await incarca() }
-                }
+                FiltreView(
+                    oras: $oras,
+                    sportAles: $sportAles,
+                    pretMax: $pretMax,
+                    ziAleasa: $ziAleasa,
+                    oraDeLa: $oraDeLa,
+                    durataOre: $durataOre
+                ) { Task { await incarca() } }
             }
-            .presentationDetents([.medium, .large])
+            .presentationDetents([.large])
         }
         .refreshable { await incarca() }
-        .task { await incarca() }
+        .task {
+            await incarca()
+            #if DEBUG
+            // Deschide panoul de filtre la pornire, pentru verificări automate.
+            if ProcessInfo.processInfo.environment["ETERENURI_FILTRE"] == "1" {
+                arataFiltre = true
+            }
+            #endif
+        }
     }
 
     private var continut: some View {
@@ -108,7 +124,11 @@ struct CautaTerenuriView: View {
 
     private var subtitluCautare: String {
         var bucati: [String] = []
+        if let sportAles { bucati.append(sportAles.eticheta) }
         if let ziAleasa { bucati.append(ziAleasa.ziScurta) }
+        if let oraDeLa {
+            bucati.append(String(format: "%02d–%02d", oraDeLa, oraDeLa + durataOre))
+        }
         if pretMax > 0 { bucati.append("sub \(Int(pretMax)) RON") }
         return bucati.isEmpty ? "Oriunde · oricând" : bucati.joined(separator: " · ")
     }
@@ -195,7 +215,7 @@ struct CautaTerenuriView: View {
     }
 
     private func stergeFiltrele() {
-        oras = ""; sportAles = nil; pretMax = 0; ziAleasa = nil
+        oras = ""; sportAles = nil; pretMax = 0; ziAleasa = nil; oraDeLa = nil; durataOre = 1
         Task { await incarca() }
     }
 
@@ -208,6 +228,10 @@ struct CautaTerenuriView: View {
         if let sportAles { parametri["sport"] = sportAles.rawValue }
         if pretMax > 0 { parametri["pretMax"] = String(Int(pretMax)) }
         if let ziAleasa { parametri["zi"] = ZiApi.text(ziAleasa) }
+        if ziAleasa != nil, let oraDeLa {
+            parametri["oraDeLa"] = String(oraDeLa)
+            parametri["oraPanaLa"] = String(oraDeLa + durataOre)
+        }
 
         do {
             terenuri = try await ApiClient.shared.cere("terenuri", parametri: parametri, ca: [Teren].self)
@@ -291,57 +315,5 @@ struct CardTeren: View {
                 .padding(.top, 2)
             }
         }
-    }
-}
-
-struct FiltreView: View {
-    @Binding var oras: String
-    @Binding var pretMax: Double
-    @Binding var ziAleasa: Date?
-    let aplica: () -> Void
-
-    @Environment(\.dismiss) private var inchide
-    @State private var areZi = false
-    @State private var zi = Date()
-
-    var body: some View {
-        Form {
-            Section("Unde") {
-                TextField("Oraș, ex. Cluj-Napoca", text: $oras)
-                    .textInputAutocapitalization(.words)
-            }
-
-            Section("Când") {
-                Toggle("O anumită zi", isOn: $areZi.animation())
-                if areZi {
-                    DatePicker("Ziua", selection: $zi, in: Date()..., displayedComponents: .date)
-                        .datePickerStyle(.graphical)
-                }
-            }
-
-            Section("Preț maxim pe oră") {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(pretMax > 0 ? "Până la \(Int(pretMax)) RON" : "Fără limită")
-                        .font(.subheadline.weight(.medium))
-                    Slider(value: $pretMax, in: 0...500, step: 10)
-                }
-            }
-        }
-        .navigationTitle("Caută")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                Button("Șterge tot") { oras = ""; pretMax = 0; areZi = false; ziAleasa = nil }
-            }
-            ToolbarItem(placement: .confirmationAction) {
-                Button("Arată terenurile") {
-                    ziAleasa = areZi ? zi : nil
-                    aplica()
-                    inchide()
-                }
-                .fontWeight(.semibold)
-            }
-        }
-        .onAppear { if let ziAleasa { areZi = true; zi = ziAleasa } }
     }
 }

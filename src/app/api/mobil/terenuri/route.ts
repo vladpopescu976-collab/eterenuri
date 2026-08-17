@@ -20,6 +20,11 @@ export async function GET(request: Request) {
     const oras = url.searchParams.get("oras")?.trim();
     const pretMax = Number(url.searchParams.get("pretMax"));
     const zi = url.searchParams.get("zi");
+    // Interval orar cerut, ca să rămână doar terenurile libere fix atunci.
+    const oraDeLa = Number(url.searchParams.get("oraDeLa"));
+    const oraPanaLa = Number(url.searchParams.get("oraPanaLa"));
+    const areInterval =
+      Number.isInteger(oraDeLa) && Number.isInteger(oraPanaLa) && oraPanaLa > oraDeLa;
 
     const where: Prisma.FieldWhereInput = { isActive: true };
     if (esteSport(sport)) where.sportType = sport;
@@ -66,19 +71,28 @@ export async function GET(request: Request) {
 
     const favoriteIds = new Set(favorite.map((f) => f.fieldId));
 
-    // Când e cerută o zi anume, scoatem terenurile deja pline în ziua aceea.
     const vizibile = interval
       ? fields.filter((field) => {
           const ocupate = [
             ...("bookings" in field ? field.bookings : []),
             ...("blockedSlots" in field ? field.blockedSlots : []),
           ];
+
+          // Cu interval cerut, terenul trebuie să fie liber pe tot intervalul
+          // și deschis atunci; altfel e destul să mai aibă o oră liberă.
+          if (areInterval) {
+            if (oraDeLa < field.openingHour || oraPanaLa > field.closingHour) return false;
+            const de = interval.start.getTime() + oraDeLa * 3_600_000;
+            const pana = interval.start.getTime() + oraPanaLa * 3_600_000;
+            return !ocupate.some((o) => o.startTime.getTime() < pana && o.endTime.getTime() > de);
+          }
+
           const deschidere = interval.start.getTime() + field.openingHour * 3_600_000;
           const inchidere = interval.start.getTime() + field.closingHour * 3_600_000;
           const oreOcupate = ocupate.reduce((sum, o) => {
-            const de = Math.max(o.startTime.getTime(), deschidere);
-            const pana = Math.min(o.endTime.getTime(), inchidere);
-            return sum + Math.max(0, pana - de) / 3_600_000;
+            const deLa = Math.max(o.startTime.getTime(), deschidere);
+            const panaLa = Math.min(o.endTime.getTime(), inchidere);
+            return sum + Math.max(0, panaLa - deLa) / 3_600_000;
           }, 0);
           return oreOcupate < field.closingHour - field.openingHour;
         })
