@@ -73,25 +73,20 @@ struct FiltreView: View {
 
     private var sectiuneOras: some View {
         Section {
-            if orase.isEmpty {
+            NavigationLink {
+                AlegeOrasView(orase: orase, ales: $oras)
+            } label: {
                 HStack {
-                    Text("Se încarcă orașele…").foregroundStyle(.secondary)
+                    Text("Oraș")
                     Spacer()
-                    ProgressView()
-                }
-                .font(.subheadline)
-            } else {
-                Picker("Oraș", selection: $oras) {
-                    Text("Toate orașele").tag("")
-                    ForEach(orase) { item in
-                        Text("\(item.oras) (\(item.terenuri))").tag(item.oras)
-                    }
+                    Text(oras.isEmpty ? "Toate orașele" : oras)
+                        .foregroundStyle(.secondary)
                 }
             }
         } header: {
             Text("Unde")
         } footer: {
-            Text("Doar orașele în care există terenuri publicate.")
+            Text("Orașele cu terenuri publicate apar primele.")
         }
     }
 
@@ -189,5 +184,86 @@ private struct CelulaAlegere: View {
             .foregroundStyle(activ ? .white : .primary)
         }
         .buttonStyle(.plain)
+    }
+}
+
+
+/// Lista completă a orașelor din România, cu căutare. Cele care au deja
+/// terenuri publicate apar primele, ca alegerea obișnuită să fie la un tap.
+private struct AlegeOrasView: View {
+    let orase: [OrasDisponibil]
+    @Binding var ales: String
+
+    @Environment(\.dismiss) private var inchide
+    @State private var cautare = ""
+
+    private var cuTerenuri: [OrasDisponibil] {
+        orase.filter { $0.terenuri > 0 && sePotriveste($0.oras) }
+    }
+
+    private var restul: [OrasDisponibil] {
+        orase.filter { $0.terenuri == 0 && sePotriveste($0.oras) }
+    }
+
+    /// Căutarea ignoră diacriticele: „timisoara” găsește „Timișoara”.
+    private func sePotriveste(_ oras: String) -> Bool {
+        let text = cautare.trimmingCharacters(in: .whitespaces)
+        guard !text.isEmpty else { return true }
+        return oras.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .aplicatie)
+            .contains(text.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .aplicatie))
+    }
+
+    var body: some View {
+        List {
+            Section {
+                Button {
+                    ales = ""
+                    inchide()
+                } label: {
+                    HStack {
+                        Text("Toate orașele")
+                        Spacer()
+                        if ales.isEmpty { Image(systemName: "checkmark").foregroundStyle(Tema.accent) }
+                    }
+                }
+                .foregroundStyle(.primary)
+            }
+
+            if !cuTerenuri.isEmpty {
+                Section("Cu terenuri disponibile") {
+                    ForEach(cuTerenuri) { item in rand(item) }
+                }
+            }
+
+            if !restul.isEmpty {
+                Section("Toate orașele din România") {
+                    ForEach(restul) { item in rand(item) }
+                }
+            }
+        }
+        .navigationTitle("Alege orașul")
+        .navigationBarTitleDisplayMode(.inline)
+        .searchable(text: $cautare, prompt: "Caută orașul")
+    }
+
+    private func rand(_ item: OrasDisponibil) -> some View {
+        Button {
+            ales = item.oras
+            inchide()
+        } label: {
+            HStack {
+                Text(item.oras)
+                Spacer()
+                if item.terenuri > 0 {
+                    Text("\(item.terenuri)")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(Tema.accent)
+                }
+                if ales == item.oras {
+                    Image(systemName: "checkmark").foregroundStyle(Tema.accent)
+                }
+            }
+        }
+        .foregroundStyle(.primary)
     }
 }

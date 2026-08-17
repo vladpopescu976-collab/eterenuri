@@ -11,6 +11,7 @@ import { FieldImage } from "@/components/field-image";
 import { FavoriteButton } from "@/components/favorite-button";
 import { Stars } from "@/components/reviews";
 import { sportMeta } from "@/lib/sports";
+import { normalizeazaOras } from "@/lib/orase";
 
 // Baza Prisma Postgres se suspenda cand e inactiva, iar prima cerere
 // care o trezeste poate dura ~30s. Implicit Vercel taie functia la 10s,
@@ -118,7 +119,7 @@ export default async function FieldDetailPage({ params }: { params: Promise<{ id
             )}
             <p className="mt-1 flex items-center gap-1.5 text-muted-foreground">
               <MapPin className="h-4 w-4" />
-              {field.address}, {field.city}
+              {field.address}, {normalizeazaOras(field.city)}
             </p>
             <p className="mt-1 flex items-center gap-1.5 text-muted-foreground">
               <Clock className="h-4 w-4" />

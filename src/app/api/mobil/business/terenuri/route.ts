@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { fieldSchema } from "@/lib/validations/field";
 import { cereBusiness, eroareNeasteptata, raspuns } from "@/lib/api/raspuns";
 import { serializeazaTeren } from "@/lib/api/serializare";
+import { cheieOras, normalizeazaOras } from "@/lib/orase";
 
 export const maxDuration = 60;
 
@@ -38,11 +39,13 @@ export async function POST(request: Request) {
 
     // Aceleași reguli ca pe web, ca să nu existe două seturi de validări.
     const date = fieldSchema.parse(await request.json());
-    const { description, amenities, images, ...rest } = date;
+    const { description, amenities, images, city, ...rest } = date;
 
     const field = await prisma.field.create({
       data: {
         ...rest,
+        city: normalizeazaOras(city),
+        cityKey: cheieOras(city),
         ownerId: sesiune.userId,
         description: description || null,
         amenities: amenities ?? [],

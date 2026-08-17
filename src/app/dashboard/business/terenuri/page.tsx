@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { FieldSettingsClient } from "@/components/dashboard/field-settings-client";
+import { normalizeazaOras } from "@/lib/orase";
 
 // Baza Prisma Postgres se suspenda cand e inactiva, iar prima cerere
 // care o trezeste poate dura ~30s. Implicit Vercel taie functia la 10s,
@@ -19,7 +20,7 @@ export default async function BusinessFieldsPage() {
         id: f.id,
         name: f.name,
         sportType: f.sportType,
-        city: f.city,
+        city: normalizeazaOras(f.city),
         address: f.address,
         pricePerHour: Number(f.pricePerHour),
         openingHour: f.openingHour,

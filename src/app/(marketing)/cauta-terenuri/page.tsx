@@ -12,6 +12,7 @@ import { SearchFilters } from "@/components/search-filters";
 import { sportMeta } from "@/lib/sports";
 import { dayRangeInAppZone } from "@/lib/datetime";
 import { getFavoriteFieldIds } from "@/lib/favorites";
+import { cheieOras, normalizeazaOras } from "@/lib/orase";
 
 // Baza Prisma Postgres se suspenda cand e inactiva, iar prima cerere
 // care o trezeste poate dura ~30s. Implicit Vercel taie functia la 10s,
@@ -50,7 +51,8 @@ async function Results({ sport, oras, pretMax, data }: SearchParams) {
   const where: Prisma.FieldWhereInput = { isActive: true };
 
   if (isSportType(sport)) where.sportType = sport;
-  if (oras?.trim()) where.city = { contains: oras.trim(), mode: "insensitive" };
+  // Pe cheia fără diacritice, ca „Timișoara” să găsească și „timisoara”.
+  if (oras?.trim()) where.cityKey = { contains: cheieOras(oras), mode: "insensitive" };
 
   const maxPrice = Number(pretMax);
   if (pretMax && Number.isFinite(maxPrice) && maxPrice > 0) {
@@ -135,7 +137,7 @@ async function Results({ sport, oras, pretMax, data }: SearchParams) {
             field={{
               id: field.id,
               name: field.name,
-              city: field.city,
+              city: normalizeazaOras(field.city),
               sportType: field.sportType,
               pricePerHour: Number(field.pricePerHour),
               images: field.images,

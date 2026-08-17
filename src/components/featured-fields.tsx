@@ -3,6 +3,7 @@ import { ArrowRight, MapPin } from "lucide-react";
 
 import { prisma } from "@/lib/prisma";
 import { Button } from "@/components/ui/button";
+import { normalizeazaOras } from "@/lib/orase";
 import { FieldCard } from "@/components/field-card";
 
 export async function FeaturedFields() {
@@ -58,7 +59,7 @@ export async function FeaturedFields() {
               field={{
                 id: field.id,
                 name: field.name,
-                city: field.city,
+                city: normalizeazaOras(field.city),
                 sportType: field.sportType,
                 pricePerHour: Number(field.pricePerHour),
                 images: field.images,

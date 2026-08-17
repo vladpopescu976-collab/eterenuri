@@ -3,6 +3,7 @@ import type { Prisma, SportType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { dayRangeInAppZone } from "@/lib/datetime";
 import { sportMeta } from "@/lib/sports";
+import { cheieOras } from "@/lib/orase";
 import { eroareNeasteptata, raspuns, sesiuneDinCerere } from "@/lib/api/raspuns";
 import { serializeazaTeren } from "@/lib/api/serializare";
 
@@ -28,7 +29,8 @@ export async function GET(request: Request) {
 
     const where: Prisma.FieldWhereInput = { isActive: true };
     if (esteSport(sport)) where.sportType = sport;
-    if (oras) where.city = { contains: oras, mode: "insensitive" };
+    // Căutăm pe cheia fără diacritice, ca „Timișoara” să găsească și „timisoara”.
+    if (oras) where.cityKey = cheieOras(oras);
     if (Number.isFinite(pretMax) && pretMax > 0) where.pricePerHour = { lte: pretMax };
 
     const sesiune = await sesiuneDinCerere(request);

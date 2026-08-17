@@ -7,6 +7,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { ActionError, fail, ok, toActionError, type ActionResult } from "@/lib/actions/result";
 import { fieldEditSchema, fieldSchema, fieldUpdateSchema } from "@/lib/validations/field";
+import { cheieOras, normalizeazaOras } from "@/lib/orase";
 
 async function requireBusinessSession() {
   const session = await auth();
@@ -104,10 +105,13 @@ export async function addField(input: z.input<typeof fieldSchema>): Promise<Acti
     const session = await requireBusinessSession();
     const data = fieldSchema.parse(input);
 
-    const { description, amenities, images, ...rest } = data;
+    const { description, amenities, images, city, ...rest } = data;
     await prisma.field.create({
       data: {
         ...rest,
+        // Salvăm orașul scris corect, ca listele publice să arate îngrijit.
+        city: normalizeazaOras(city),
+        cityKey: cheieOras(city),
         ownerId: session.user.id,
         description: description || null,
         amenities: amenities ?? [],
@@ -163,11 +167,13 @@ export async function updateFieldDetails(
       return fail("Terenul nu a fost găsit.");
     }
 
-    const { fieldId, description, amenities, images, ...rest } = data;
+    const { fieldId, description, amenities, images, city, ...rest } = data;
     await prisma.field.update({
       where: { id: fieldId },
       data: {
         ...rest,
+        city: normalizeazaOras(city),
+        cityKey: cheieOras(city),
         description: description || null,
         amenities: amenities ?? [],
         images: images ?? [],

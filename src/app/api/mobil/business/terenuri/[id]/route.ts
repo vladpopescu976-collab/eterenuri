@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { fieldEditSchema } from "@/lib/validations/field";
 import { cereBusiness, eroare, eroareNeasteptata, raspuns } from "@/lib/api/raspuns";
 import { serializeazaTeren } from "@/lib/api/serializare";
+import { cheieOras, normalizeazaOras } from "@/lib/orase";
 
 export const maxDuration = 60;
 
@@ -19,12 +20,14 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     if (!(await terenulMeu(id, sesiune.userId))) return eroare("Terenul nu a fost găsit.", 404);
 
     const date = fieldEditSchema.parse({ ...(await request.json()), fieldId: id });
-    const { fieldId, description, amenities, images, ...rest } = date;
+    const { fieldId, description, amenities, images, city, ...rest } = date;
 
     const field = await prisma.field.update({
       where: { id: fieldId },
       data: {
         ...rest,
+        city: normalizeazaOras(city),
+        cityKey: cheieOras(city),
         description: description || null,
         amenities: amenities ?? [],
         images: images ?? [],

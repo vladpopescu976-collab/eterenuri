@@ -105,6 +105,9 @@ model Field {
   description String?   @db.Text
   sportType   SportType
   city        String
+  // Orașul fără diacritice și cu litere mici. Căutarea se face pe el, altfel
+  // „Timișoara” nu ar găsi terenurile scrise „timisoara”.
+  cityKey     String   @default("")
   address     String
   pricePerHour Decimal  @db.Decimal(10, 2)
   images      String[]
@@ -126,7 +129,7 @@ model Field {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([city])
+  @@index([cityKey])
   @@index([sportType])
   @@index([ownerId])
   @@map("fields")

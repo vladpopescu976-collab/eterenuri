@@ -44,6 +44,16 @@ tastatură. Nu există în build-ul final.
 SIMCTL_CHILD_ETERENURI_TOKEN="<token>" xcrun simctl launch booted ro.eterenuri.app
 ```
 
+Alte variabile, tot doar în dezvoltare:
+
+| Variabilă | Ce face |
+|---|---|
+| `ETERENURI_TOKEN` | pornește aplicația conectată |
+| `ETERENURI_TAB` | ecranul de start pentru Business (`calendar`, `rezervari`, …) |
+| `ETERENURI_FILTRE=1` | deschide panoul de filtre |
+| `ETERENURI_REZERVA=<id teren>` | deschide direct ecranul de rezervare |
+| `ETERENURI_ORA=<oră>` | preselectează ora de început |
+
 ## Structura
 
 ```

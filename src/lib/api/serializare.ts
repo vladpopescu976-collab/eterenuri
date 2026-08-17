@@ -1,5 +1,7 @@
 import type { Booking, BookingStatus, Field, Review, SportType } from "@prisma/client";
 
+import { normalizeazaOras } from "@/lib/orase";
+
 // Formele trimise către aplicația nativă. Sunt scrise explicit ca să nu ajungă
 // din greșeală câmpuri interne în răspuns și ca structurile din Swift să aibă
 // un contract stabil.
@@ -31,7 +33,8 @@ export function serializeazaTeren(
     id: field.id,
     nume: field.name,
     sport: field.sportType,
-    oras: field.city,
+    // Datele vechi pot avea orașul scris oricum; îl arătăm mereu corect.
+    oras: normalizeazaOras(field.city),
     adresa: field.address,
     descriere: field.description,
     pretPeOra: Number(field.pricePerHour),
@@ -82,7 +85,7 @@ export function serializeazaRezervare(booking: BookingCuTeren): RezervareApi {
     teren: {
       id: booking.field.id,
       nume: booking.field.name,
-      oras: booking.field.city,
+      oras: normalizeazaOras(booking.field.city),
       oraDeschidere: booking.field.openingHour,
       oraInchidere: booking.field.closingHour,
     },

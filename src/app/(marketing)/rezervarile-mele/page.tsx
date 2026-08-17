@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { MyBookingsClient } from "@/components/dashboard/my-bookings-client";
+import { normalizeazaOras } from "@/lib/orase";
 
 // Baza Prisma Postgres se suspenda cand e inactiva, iar prima cerere
 // care o trezeste poate dura ~30s. Implicit Vercel taie functia la 10s,
@@ -32,7 +33,15 @@ export default async function MyBookingsPage() {
       <p className="mt-1 text-muted-foreground">Urmărește statusul cererilor tale de rezervare.</p>
 
       <div className="mt-8">
-        <MyBookingsClient bookings={bookings.map((b) => ({ ...b, totalPrice: Number(b.totalPrice) }))} />
+        <MyBookingsClient
+          bookings={bookings.map((b) => ({
+            ...b,
+            totalPrice: Number(b.totalPrice),
+            // Orașul apare mereu scris corect, chiar dacă proprietarul l-a
+            // salvat cu litere mici sau fără diacritice.
+            field: { ...b.field, city: normalizeazaOras(b.field.city) },
+          }))}
+        />
       </div>
     </div>
   );
