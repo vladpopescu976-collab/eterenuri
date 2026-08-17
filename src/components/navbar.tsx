@@ -27,7 +27,7 @@ const roleLabel: Record<string, string> = {
   BUSINESS: "Cont Business",
 };
 
-const navLinks = [
+const baseNavLinks = [
   { href: "/", label: "Acasă" },
   { href: "/#terenuri", label: "Terenuri" },
 ];
@@ -59,6 +59,11 @@ export function Navbar() {
   const [fetchedActionNeeded, setFetchedActionNeeded] = useState(0);
   const isPersonal = session?.user?.role === "PERSONAL";
   const actionNeeded = isPersonal ? fetchedActionNeeded : 0;
+
+  // Favoritele au sens doar pentru jucători, deci linkul apare doar la ei.
+  const navLinks = isPersonal
+    ? [...baseNavLinks, { href: "/favorite", label: "Favorite" }]
+    : baseNavLinks;
 
   useEffect(() => {
     if (!isPersonal) return;
@@ -223,6 +228,21 @@ export function Navbar() {
                   {actionNeeded}
                 </span>
               )}
+            </Link>
+          )}
+
+          {isPersonal && (
+            <Link
+              href="/favorite"
+              aria-label="Terenuri favorite"
+              className={cn(
+                "inline-flex h-9 w-9 items-center justify-center rounded-full transition-colors",
+                pathname === "/favorite"
+                  ? "bg-rose-100 text-rose-600 dark:bg-rose-500/15 dark:text-rose-400"
+                  : "text-muted-foreground hover:text-rose-600"
+              )}
+            >
+              <Heart className={cn("h-5 w-5", pathname === "/favorite" && "fill-current")} />
             </Link>
           )}
 
