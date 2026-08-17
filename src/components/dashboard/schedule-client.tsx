@@ -137,9 +137,9 @@ export function ScheduleClient({
               <ChevronLeft className="h-4 w-4" />
               <span className="hidden sm:inline">Ziua anterioară</span>
             </button>
-            {/* Butonul arată ziua la care te uiți; scrie „Azi” doar când chiar
-                ești pe ziua curentă. Când ești pe altă zi, apăsarea te aduce
-                înapoi la azi. */}
+            {/* Data vizitată se vede mereu, ca să știi unde ești fără să te
+                uiți în altă parte. Când ești pe ziua curentă apare și „Azi”,
+                iar în rest apăsarea te aduce înapoi la azi. */}
             <button
               type="button"
               disabled={isToday}
@@ -153,7 +153,8 @@ export function ScheduleClient({
               }
             >
               <CalendarDays className="h-3.5 w-3.5" />
-              {isToday ? "Azi" : shortDateFmt.format(selectedDate)}
+              {isToday && <span>Azi ·</span>}
+              {shortDateFmt.format(selectedDate)}
             </button>
             <button
               type="button"
