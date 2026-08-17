@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronLeft, ChevronRight, ChevronDown, CalendarDays, Clock3, Lock, Plus, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronDown, CalendarDays, Clock3, Lock, Phone, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { StatusBadge } from "@/components/dashboard/status-badge";
@@ -70,6 +70,9 @@ type BlockedSlot = {
   startTime: Date;
   endTime: Date;
   reason: string | null;
+  /// Completat când intervalul e o rezervare notată manual, nu o blocare.
+  clientName: string | null;
+  clientPhone: string | null;
 };
 
 type ScheduleField = {
@@ -282,9 +285,18 @@ export function ScheduleClient({
                           className="group absolute inset-x-1 z-10 flex flex-col items-start overflow-hidden rounded-lg border-l-[3px] border-slate-400 bg-muted px-2 py-1.5 text-left text-muted-foreground shadow-sm"
                         >
                           <span className="flex items-center gap-1 truncate text-[11.5px] font-semibold leading-tight">
-                            <Lock className="h-3 w-3 shrink-0" />
-                            {s.reason || "Blocat"}
+                            {s.clientName ? (
+                              <Phone className="h-3 w-3 shrink-0" />
+                            ) : (
+                              <Lock className="h-3 w-3 shrink-0" />
+                            )}
+                            {s.clientName || s.reason || "Blocat"}
                           </span>
+                          {s.clientPhone && (
+                            <span className="truncate text-[10px] leading-tight opacity-75">
+                              {s.clientPhone}
+                            </span>
+                          )}
                           <span className="mt-auto truncate font-mono text-[10.5px] leading-tight opacity-80 tabular-nums">
                             {fmtHour(start)}–{fmtHour(end)}
                           </span>

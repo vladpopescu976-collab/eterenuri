@@ -12,7 +12,7 @@ struct CautaTerenuriView: View {
     @State private var arataFiltre = false
 
     private var filtreActive: Int {
-        [sportAles != nil, !oras.isEmpty, pretMax > 0, ziAleasa != nil].filter { $0 }.count
+        [!oras.isEmpty, pretMax > 0, ziAleasa != nil].filter { $0 }.count
     }
 
     var body: some View {
@@ -20,24 +20,13 @@ struct CautaTerenuriView: View {
             Tema.fundal.ignoresSafeArea()
             continut
         }
-        .navigationTitle("Terenuri")
+        .toolbar(.hidden, for: .navigationBar)
         .navigationDestination(for: String.self) { DetaliuTerenView(terenId: $0) }
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    arataFiltre = true
-                } label: {
-                    Image(systemName: filtreActive > 0
-                        ? "line.3.horizontal.decrease.circle.fill"
-                        : "line.3.horizontal.decrease.circle")
-                }
-            }
-        }
         .sheet(isPresented: $arataFiltre) {
             NavigationStack {
-                FiltreView(
-                    oras: $oras, sportAles: $sportAles, pretMax: $pretMax, ziAleasa: $ziAleasa
-                ) { Task { await incarca() } }
+                FiltreView(oras: $oras, pretMax: $pretMax, ziAleasa: $ziAleasa) {
+                    Task { await incarca() }
+                }
             }
             .presentationDetents([.medium, .large])
         }
@@ -47,17 +36,103 @@ struct CautaTerenuriView: View {
 
     private var continut: some View {
         ScrollView {
-            VStack(spacing: 14) {
-                banda
-                lista
+            LazyVStack(spacing: 0, pinnedViews: .sectionHeaders) {
+                Section {
+                    lista
+                        .padding(.horizontal, 20)
+                        .padding(.top, 18)
+                        .padding(.bottom, 20)
+                } header: {
+                    antet
+                }
             }
-            .padding(.horizontal, Tema.spatiu)
-            .padding(.vertical, 8)
         }
     }
 
-    // Împărțit în bucăți mici: într-un singur `if/else` mare, verificarea de
-    // tipuri din Swift se împotmolea și compilarea eșua.
+    // MARK: - Antet: căutare + categorii
+
+    private var antet: some View {
+        VStack(spacing: 16) {
+            baraDeCautare
+            categorii
+        }
+        .padding(.top, 8)
+        .padding(.bottom, 12)
+        .background(.regularMaterial)
+    }
+
+    /// Un singur loc, evident, în care începe căutarea.
+    private var baraDeCautare: some View {
+        Button {
+            arataFiltre = true
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(Tema.accent)
+
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(oras.isEmpty ? "Caută un teren" : oras)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.primary)
+                    Text(subtitluCautare)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+
+                Spacer(minLength: 8)
+
+                ZStack(alignment: .topTrailing) {
+                    Image(systemName: "slider.horizontal.3")
+                        .font(.system(size: 14, weight: .semibold))
+                        .frame(width: 36, height: 36)
+                        .background(Tema.fundal, in: .circle)
+                    if filtreActive > 0 {
+                        Circle()
+                            .fill(Tema.accent)
+                            .frame(width: 9, height: 9)
+                            .offset(x: 1, y: -1)
+                    }
+                }
+            }
+            .padding(.vertical, 9)
+            .padding(.leading, 18)
+            .padding(.trailing, 9)
+            .background(Tema.fisa, in: .capsule)
+            .shadow(color: .black.opacity(0.08), radius: 10, x: 0, y: 4)
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 20)
+    }
+
+    private var subtitluCautare: String {
+        var bucati: [String] = []
+        if let ziAleasa { bucati.append(ziAleasa.ziScurta) }
+        if pretMax > 0 { bucati.append("sub \(Int(pretMax)) RON") }
+        return bucati.isEmpty ? "Oriunde · oricând" : bucati.joined(separator: " · ")
+    }
+
+    private var categorii: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 26) {
+                Categorie(simbol: "square.grid.2x2", eticheta: "Toate", activ: sportAles == nil) {
+                    sportAles = nil
+                    Task { await incarca() }
+                }
+                ForEach(Sport.allCases, id: \.self) { sport in
+                    Categorie(simbol: sport.simbol, eticheta: sport.eticheta, activ: sportAles == sport) {
+                        sportAles = sportAles == sport ? nil : sport
+                        Task { await incarca() }
+                    }
+                }
+            }
+            .padding(.horizontal, 20)
+        }
+    }
+
+    // MARK: - Lista
+
     @ViewBuilder
     private var lista: some View {
         if seIncarca {
@@ -72,7 +147,9 @@ struct CautaTerenuriView: View {
     }
 
     private var schelete: some View {
-        ForEach(0..<3, id: \.self) { _ in ScheletFisa(inaltime: 232) }
+        VStack(spacing: 26) {
+            ForEach(0..<3, id: \.self) { _ in ScheletFisa(inaltime: 300) }
+        }
     }
 
     private func stareEroare(_ mesaj: String) -> some View {
@@ -83,15 +160,12 @@ struct CautaTerenuriView: View {
             titluActiune: "Încearcă din nou",
             actiune: { Task { await incarca() } }
         )
-        .fisa()
     }
 
     private var stareFaraRezultate: some View {
-        // Tipurile sunt scrise explicit: cu ternare pe closure opțional,
-        // verificarea de tipuri se blochează.
-        let areFiltre: Bool = filtreActive > 0
+        let areFiltre: Bool = filtreActive > 0 || sportAles != nil
         let detaliu: String = areFiltre
-            ? "Încearcă să scoți câteva filtre."
+            ? "Încearcă alt sport sau scoate câteva filtre."
             : "Deocamdată nu există terenuri publicate."
         let titluActiune: String? = areFiltre ? "Șterge filtrele" : nil
         let actiune: (() -> Void)? = areFiltre ? { self.stergeFiltrele() } : nil
@@ -103,48 +177,19 @@ struct CautaTerenuriView: View {
             titluActiune: titluActiune,
             actiune: actiune
         )
-        .fisa()
     }
 
     private var rezultate: some View {
-        ForEach(terenuri) { teren in
-            NavigationLink(value: teren.id) { CardTeren(teren: teren) }
-                .buttonStyle(.plain)
-        }
-    }
-
-    /// Rezumatul filtrelor, ca să se vadă mereu ce se caută.
-    private var banda: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                Button { arataFiltre = true } label: {
-                    Label("Filtre", systemImage: "slider.horizontal.3")
-                        .font(.footnote.weight(.medium))
-                        .padding(.horizontal, 12).padding(.vertical, 8)
-                        .background(Tema.fisa, in: .capsule)
-                }
-                .apasabil()
-
-                if let sportAles {
-                    ChipFiltru(text: sportAles.eticheta, simbol: sportAles.simbol) {
-                        self.sportAles = nil; Task { await incarca() }
-                    }
-                }
-                if !oras.isEmpty {
-                    ChipFiltru(text: oras, simbol: "mappin") {
-                        oras = ""; Task { await incarca() }
-                    }
-                }
-                if pretMax > 0 {
-                    ChipFiltru(text: "sub \(Int(pretMax)) RON", simbol: "tag") {
-                        pretMax = 0; Task { await incarca() }
-                    }
-                }
-                if let ziAleasa {
-                    ChipFiltru(text: ziAleasa.ziScurta, simbol: "calendar") {
-                        self.ziAleasa = nil; Task { await incarca() }
-                    }
-                }
+        VStack(spacing: 28) {
+            HStack {
+                Text("\(terenuri.count) \(terenuri.count == 1 ? "teren disponibil" : "terenuri disponibile")")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                Spacer()
+            }
+            ForEach(terenuri) { teren in
+                NavigationLink(value: teren.id) { CardTeren(teren: teren) }
+                    .buttonStyle(.plain)
             }
         }
     }
@@ -173,96 +218,84 @@ struct CautaTerenuriView: View {
     }
 }
 
-struct ChipFiltru: View {
-    let text: String
-    var simbol: String?
-    let sterge: () -> Void
+private struct Categorie: View {
+    let simbol: String
+    let eticheta: String
+    let activ: Bool
+    let actiune: () -> Void
 
     var body: some View {
-        HStack(spacing: 5) {
-            if let simbol { Image(systemName: simbol).font(.system(size: 10)) }
-            Text(text).font(.footnote.weight(.medium))
-            Button(action: sterge) {
-                Image(systemName: "xmark").font(.system(size: 9, weight: .bold))
+        Button(action: actiune) {
+            VStack(spacing: 7) {
+                Image(systemName: simbol).font(.system(size: 19))
+                Text(eticheta)
+                    .font(.caption2.weight(activ ? .semibold : .regular))
+                    .fixedSize()
+                // Sublinierea marchează categoria activă, fără să adauge culoare.
+                Rectangle()
+                    .fill(activ ? Color.primary : .clear)
+                    .frame(height: 2)
             }
+            .foregroundStyle(activ ? .primary : .secondary)
         }
-        .padding(.horizontal, 11).padding(.vertical, 8)
-        .background(Tema.accent.opacity(0.12), in: .capsule)
-        .foregroundStyle(Tema.accent)
+        .buttonStyle(.plain)
     }
 }
 
-/// Cardul cu poză mare — terenul se alege cu ochii, nu citind un rând de listă.
+/// Poză mare, informații pe rânduri clare, mult aer între carduri.
 struct CardTeren: View {
     let teren: Teren
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            ZStack(alignment: .topLeading) {
+        VStack(alignment: .leading, spacing: 12) {
+            ZStack(alignment: .topTrailing) {
                 PozaTeren(cale: teren.poze.first, sport: teren.sport)
-                    .frame(height: 160)
+                    .frame(height: 210)
                     .frame(maxWidth: .infinity)
                     .clipped()
+                    .clipShape(.rect(cornerRadius: Tema.razaFisa, style: .continuous))
 
-                HStack {
-                    // Text în culoarea de sistem peste material: rămâne lizibil
-                    // și pe poze deschise, și pe cele întunecate.
-                    HStack(spacing: 4) {
-                        Image(systemName: teren.sport.simbol)
-                            .font(.system(size: 10, weight: .semibold))
-                        Text(teren.sport.eticheta).font(.caption2.weight(.semibold))
-                    }
-                    .padding(.horizontal, 9).padding(.vertical, 5)
-                    .background(.regularMaterial, in: .capsule)
-                    Spacer()
-                    if teren.favorit {
-                        Image(systemName: "heart.fill")
-                            .font(.caption)
-                            .foregroundStyle(.pink)
-                            .padding(7)
-                            .background(.ultraThinMaterial, in: .circle)
-                    }
+                if teren.favorit {
+                    Image(systemName: "heart.fill")
+                        .font(.system(size: 13))
+                        .foregroundStyle(.white)
+                        .padding(8)
+                        .background(.black.opacity(0.28), in: .circle)
+                        .padding(12)
                 }
-                .padding(10)
             }
+            .shadow(color: .black.opacity(0.10), radius: 14, x: 0, y: 6)
 
-            VStack(alignment: .leading, spacing: 6) {
-                HStack(alignment: .firstTextBaseline) {
+            VStack(alignment: .leading, spacing: 5) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
                     Text(teren.nume).font(.headline).lineLimit(1)
-                    Spacer()
+                    Spacer(minLength: 0)
                     if let nota = teren.notaMedie {
                         HStack(spacing: 3) {
-                            Image(systemName: "star.fill")
-                                .font(.system(size: 10)).foregroundStyle(.yellow)
-                            Text(String(format: "%.1f", nota)).font(.caption.weight(.semibold))
-                            Text("(\(teren.numarRecenzii))")
-                                .font(.caption2).foregroundStyle(.secondary)
+                            Image(systemName: "star.fill").font(.system(size: 11))
+                            Text(String(format: "%.1f", nota)).font(.subheadline.weight(.medium))
                         }
                     }
                 }
 
-                Label(teren.oras, systemImage: "mappin.and.ellipse")
-                    .font(.caption).foregroundStyle(.secondary)
+                Text("\(teren.sport.eticheta) · \(teren.oras)")
+                    .font(.subheadline).foregroundStyle(.secondary)
 
-                HStack(alignment: .firstTextBaseline, spacing: 3) {
-                    Text("\(Int(teren.pretPeOra))").font(.title3.weight(.bold))
-                    Text("RON / oră").font(.caption).foregroundStyle(.secondary)
-                    Spacer()
-                    Text("\(String(format: "%02d", teren.oraDeschidere)):00–\(String(format: "%02d", teren.oraInchidere)):00")
-                        .font(.caption2).foregroundStyle(.secondary)
+                Text("Deschis \(String(format: "%02d", teren.oraDeschidere)):00 – \(String(format: "%02d", teren.oraInchidere)):00")
+                    .font(.subheadline).foregroundStyle(.secondary)
+
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                    Text("\(Int(teren.pretPeOra)) RON").font(.subheadline.weight(.semibold))
+                    Text("/ oră").font(.subheadline).foregroundStyle(.secondary)
                 }
+                .padding(.top, 2)
             }
-            .padding(14)
         }
-        .background(Tema.fisa, in: .rect(cornerRadius: Tema.razaFisa, style: .continuous))
-        .clipShape(.rect(cornerRadius: Tema.razaFisa, style: .continuous))
-        .shadow(color: .black.opacity(0.06), radius: 12, x: 0, y: 5)
     }
 }
 
 struct FiltreView: View {
     @Binding var oras: String
-    @Binding var sportAles: Sport?
     @Binding var pretMax: Double
     @Binding var ziAleasa: Date?
     let aplica: () -> Void
@@ -273,59 +306,35 @@ struct FiltreView: View {
 
     var body: some View {
         Form {
-            Section("Sport") {
-                LazyVGrid(columns: [.init(.adaptive(minimum: 96), spacing: 8)], spacing: 8) {
-                    ForEach(Sport.allCases, id: \.self) { sport in
-                        let ales = sportAles == sport
-                        Button {
-                            sportAles = ales ? nil : sport
-                        } label: {
-                            VStack(spacing: 4) {
-                                Image(systemName: sport.simbol).font(.callout)
-                                Text(sport.eticheta).font(.caption2.weight(.medium))
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 10)
-                            .background(ales ? Tema.accent : Tema.fundal,
-                                        in: .rect(cornerRadius: Tema.razaMica, style: .continuous))
-                            .foregroundStyle(ales ? .white : .primary)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .padding(.vertical, 4)
-            }
-
-            Section("Oraș") {
-                TextField("ex. Cluj-Napoca", text: $oras)
+            Section("Unde") {
+                TextField("Oraș, ex. Cluj-Napoca", text: $oras)
                     .textInputAutocapitalization(.words)
             }
 
+            Section("Când") {
+                Toggle("O anumită zi", isOn: $areZi.animation())
+                if areZi {
+                    DatePicker("Ziua", selection: $zi, in: Date()..., displayedComponents: .date)
+                        .datePickerStyle(.graphical)
+                }
+            }
+
             Section("Preț maxim pe oră") {
-                VStack(alignment: .leading) {
+                VStack(alignment: .leading, spacing: 6) {
                     Text(pretMax > 0 ? "Până la \(Int(pretMax)) RON" : "Fără limită")
                         .font(.subheadline.weight(.medium))
                     Slider(value: $pretMax, in: 0...500, step: 10)
                 }
             }
-
-            Section("Disponibil în ziua") {
-                Toggle("Filtrează după zi", isOn: $areZi.animation())
-                if areZi {
-                    DatePicker("Ziua", selection: $zi, in: Date()..., displayedComponents: .date)
-                }
-            }
         }
-        .navigationTitle("Filtre")
+        .navigationTitle("Caută")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
-                Button("Șterge tot") {
-                    oras = ""; sportAles = nil; pretMax = 0; areZi = false; ziAleasa = nil
-                }
+                Button("Șterge tot") { oras = ""; pretMax = 0; areZi = false; ziAleasa = nil }
             }
             ToolbarItem(placement: .confirmationAction) {
-                Button("Arată") {
+                Button("Arată terenurile") {
                     ziAleasa = areZi ? zi : nil
                     aplica()
                     inchide()
@@ -333,8 +342,6 @@ struct FiltreView: View {
                 .fontWeight(.semibold)
             }
         }
-        .onAppear {
-            if let ziAleasa { areZi = true; zi = ziAleasa }
-        }
+        .onAppear { if let ziAleasa { areZi = true; zi = ziAleasa } }
     }
 }

@@ -22,7 +22,10 @@ export default async function BusinessSchedulePage() {
     }),
     prisma.blockedSlot.findMany({
       where: { field: { ownerId } },
-      select: { id: true, fieldId: true, startTime: true, endTime: true, reason: true },
+      select: {
+        id: true, fieldId: true, startTime: true, endTime: true,
+        reason: true, clientName: true, clientPhone: true,
+      },
     }),
   ]);
 

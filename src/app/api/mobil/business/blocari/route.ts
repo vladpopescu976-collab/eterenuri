@@ -24,6 +24,8 @@ export async function GET(request: Request) {
         inceput: b.startTime.toISOString(),
         sfarsit: b.endTime.toISOString(),
         motiv: b.reason,
+        clientNume: b.clientName,
+        clientTelefon: b.clientPhone,
       }))
     );
   } catch (error) {
@@ -36,6 +38,9 @@ const schema = z.object({
   inceput: z.iso.datetime({ message: "Ora de start nu este validă." }),
   sfarsit: z.iso.datetime({ message: "Ora de sfârșit nu este validă." }),
   motiv: z.string().trim().max(200).optional(),
+  // Completat doar când proprietarul notează o rezervare primită la telefon.
+  clientNume: z.string().trim().max(100).optional(),
+  clientTelefon: z.string().trim().max(30).optional(),
 });
 
 export async function POST(request: Request) {
@@ -73,6 +78,8 @@ export async function POST(request: Request) {
             startTime: inceput,
             endTime: sfarsit,
             reason: date.motiv?.trim() || null,
+            clientName: date.clientNume?.trim() || null,
+            clientPhone: date.clientTelefon?.trim() || null,
           },
         });
       });
@@ -84,6 +91,8 @@ export async function POST(request: Request) {
           inceput: blocare.startTime.toISOString(),
           sfarsit: blocare.endTime.toISOString(),
           motiv: blocare.reason,
+          clientNume: blocare.clientName,
+          clientTelefon: blocare.clientPhone,
         },
         201
       );

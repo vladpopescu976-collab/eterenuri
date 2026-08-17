@@ -35,6 +35,8 @@ export function BlockSlotDialog({
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
   const [reason, setReason] = useState("");
+  const [clientName, setClientName] = useState("");
+  const [clientPhone, setClientPhone] = useState("");
   const [error, setError] = useState("");
   const [isPending, startTransition] = useTransition();
 
@@ -62,15 +64,21 @@ export function BlockSlotDialog({
         startTime,
         endTime,
         reason: reason.trim() || undefined,
+        clientName: clientName.trim() || undefined,
+        clientPhone: clientPhone.trim() || undefined,
       });
       if (!result.ok) {
         setError(result.error);
         return;
       }
-      toast.success("Intervalul a fost blocat.");
+      toast.success(
+        clientName.trim() ? "Rezervarea a fost notată." : "Intervalul a fost blocat."
+      );
       setStart("");
       setEnd("");
       setReason("");
+      setClientName("");
+      setClientPhone("");
       onOpenChange(false);
     });
   }
@@ -163,6 +171,30 @@ export function BlockSlotDialog({
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          <div className="rounded-lg border p-3">
+            <Label htmlFor="block-client">Client (opțional)</Label>
+            <p className="mt-0.5 text-[11.5px] text-muted-foreground">
+              Completează numele dacă notezi o rezervare primită la telefon.
+              Lasă gol pentru o blocare obișnuită.
+            </p>
+            <Input
+              id="block-client"
+              value={clientName}
+              onChange={(e) => setClientName(e.target.value)}
+              placeholder="Nume client"
+              className="mt-2"
+            />
+            {clientName.trim() && (
+              <Input
+                type="tel"
+                value={clientPhone}
+                onChange={(e) => setClientPhone(e.target.value)}
+                placeholder="Telefon (opțional)"
+                className="mt-2"
+              />
+            )}
           </div>
 
           <div>

@@ -45,6 +45,9 @@ const blockSchema = z.object({
   startTime: z.iso.datetime({ message: "Ora de start nu este validă." }),
   endTime: z.iso.datetime({ message: "Ora de sfârșit nu este validă." }),
   reason: z.string().trim().max(200, "Motivul nu poate depăși 200 de caractere.").optional(),
+  // Completate doar când proprietarul notează o rezervare primită la telefon.
+  clientName: z.string().trim().max(100, "Numele este prea lung.").optional(),
+  clientPhone: z.string().trim().max(30, "Numărul este prea lung.").optional(),
 });
 
 export async function blockSlot(input: z.infer<typeof blockSchema>): Promise<ActionResult> {
@@ -93,6 +96,8 @@ export async function blockSlot(input: z.infer<typeof blockSchema>): Promise<Act
             startTime,
             endTime,
             reason: data.reason?.trim() || null,
+            clientName: data.clientName?.trim() || null,
+            clientPhone: data.clientPhone?.trim() || null,
           },
         });
       });

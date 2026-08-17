@@ -1,21 +1,36 @@
 import SwiftUI
 
 struct BusinessTabView: View {
+    @State private var tabAles = Self.tabInitial
+
+    /// În build-urile de dezvoltare, ecranul de start poate fi ales din mediu,
+    /// pentru verificări automate.
+    private static var tabInitial: String {
+        #if DEBUG
+        ProcessInfo.processInfo.environment["ETERENURI_TAB"] ?? "ansamblu"
+        #else
+        "ansamblu"
+        #endif
+    }
+
     var body: some View {
-        TabView {
-            Tab("Ansamblu", systemImage: "chart.bar") {
+        TabView(selection: $tabAles) {
+            Tab("Ansamblu", systemImage: "chart.bar", value: "ansamblu") {
                 NavigationStack { AnsambluView() }
             }
-            Tab("Rezervări", systemImage: "list.clipboard") {
+            Tab("Calendar", systemImage: "calendar", value: "calendar") {
+                NavigationStack { CalendarView() }
+            }
+            Tab("Rezervări", systemImage: "list.clipboard", value: "rezervari") {
                 NavigationStack { RezervariBusinessView() }
             }
-            Tab("Terenuri", systemImage: "sportscourt") {
+            Tab("Terenuri", systemImage: "sportscourt", value: "terenuri") {
                 NavigationStack { TerenuriBusinessView() }
             }
-            Tab("Recenzii", systemImage: "star") {
+            Tab("Recenzii", systemImage: "star", value: "recenzii") {
                 NavigationStack { RecenziiBusinessView() }
             }
-            Tab("Cont", systemImage: "person") {
+            Tab("Cont", systemImage: "person", value: "cont") {
                 NavigationStack { ContView() }
             }
         }

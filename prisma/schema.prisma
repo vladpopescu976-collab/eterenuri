@@ -220,6 +220,12 @@ model BlockedSlot {
   endTime   DateTime
   reason    String?
 
+  // O rezervare primită la telefon ocupă terenul exact ca o blocare, doar că
+  // are un client. Cu numele completat, intervalul e o rezervare manuală;
+  // fără el, e o blocare (mentenanță, eveniment propriu).
+  clientName  String?
+  clientPhone String?
+
   createdAt DateTime @default(now())
 
   @@index([fieldId])

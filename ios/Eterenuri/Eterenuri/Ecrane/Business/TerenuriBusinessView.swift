@@ -50,7 +50,11 @@ struct TerenuriBusinessView: View {
                         ForEach(blocari.filter { $0.terenId == teren.id }) { blocare in
                             HStack {
                                 VStack(alignment: .leading, spacing: 1) {
-                                    Text(blocare.motiv ?? "Blocat").font(.subheadline)
+                                    Label(
+                                        blocare.clientNume ?? blocare.motiv ?? "Blocat",
+                                        systemImage: blocare.clientNume == nil ? "lock.fill" : "phone.fill"
+                                    )
+                                    .font(.subheadline)
                                     Text("\(blocare.inceput.ziScurta) · \(blocare.inceput.oraScurta)–\(blocare.sfarsit.oraScurta)")
                                         .font(.caption).foregroundStyle(.secondary)
                                 }
