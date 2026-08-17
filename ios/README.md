@@ -9,11 +9,15 @@ JSON de sub `/api/mobil`.
 2. Deschide `ios/Eterenuri/Eterenuri.xcodeproj` în Xcode.
 3. Alege un simulator de iPhone și rulează (⌘R).
 
-În simulator, `localhost` e chiar Mac-ul, deci merge direct.
+Adresa implicită este `http://127.0.0.1:3000` și merge direct în simulator.
+
+**Nu folosi `localhost`.** Se rezolvă întâi la `::1`, iar în simulator asta
+înseamnă loopback-ul dispozitivului simulat, nu al Mac-ului: cererile expiră
+pur și simplu, fără vreun mesaj care să spună de ce.
 
 ## Pe un iPhone real
 
-Telefonul nu vede `localhost`-ul Mac-ului. Schimbă `EterenuriApiURL` din
+Telefonul nu vede loopback-ul Mac-ului. Schimbă `EterenuriApiURL` din
 `ios/Eterenuri/Info.plist` cu adresa Mac-ului în rețea (o vezi la pornirea lui
 `next dev`, ex. `http://192.168.1.130:3000`) sau cu adresa de producție.
 

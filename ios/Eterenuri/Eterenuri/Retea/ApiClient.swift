@@ -89,7 +89,9 @@ actor ApiClient {
         do {
             (date, raspuns) = try await sesiuneRetea.data(for: cerere)
         } catch {
-            throw EroareApi(mesaj: "Nu am putut contacta serverul. Verifică conexiunea.")
+            // Mesajul spune și de ce a picat, altfel „verifică conexiunea” nu
+            // ajută cu nimic la depanare.
+            throw EroareApi(mesaj: Self.explica(error, url: componente.url))
         }
 
         let cod = (raspuns as? HTTPURLResponse)?.statusCode ?? 0
@@ -109,6 +111,30 @@ actor ApiClient {
             throw eroare
         } catch {
             throw EroareApi(mesaj: "Nu am putut citi răspunsul serverului.")
+        }
+    }
+
+    /// Traduce erorile de rețea în ceva pe care îl poți citi și acționa.
+    private static func explica(_ error: Error, url: URL?) -> String {
+        let adresa = url?.host.map { "\($0):\(url?.port ?? 80)" } ?? "server"
+
+        guard let urlError = error as? URLError else {
+            return "Nu am putut contacta serverul (\(adresa)). \(error.localizedDescription)"
+        }
+
+        switch urlError.code {
+        case .cannotConnectToHost:
+            return "Serverul de la \(adresa) nu răspunde. Pornește-l cu „npm run dev” sau schimbă EterenuriApiURL din Info.plist."
+        case .cannotFindHost:
+            return "Adresa \(adresa) nu poate fi găsită. Verifică EterenuriApiURL din Info.plist."
+        case .timedOut:
+            return "Serverul de la \(adresa) nu a răspuns la timp. Prima cerere după o pauză poate dura, încearcă din nou."
+        case .notConnectedToInternet, .networkConnectionLost:
+            return "Nu există conexiune la rețea."
+        case .appTransportSecurityRequiresSecureConnection:
+            return "iOS a blocat conexiunea nesecurizată către \(adresa). Folosește https sau adaugă o excepție în Info.plist."
+        default:
+            return "Nu am putut contacta serverul (\(adresa)). \(urlError.localizedDescription) [cod \(urlError.errorCode)]"
         }
     }
 

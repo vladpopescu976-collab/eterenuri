@@ -1,18 +1,18 @@
 import Foundation
 
 enum Config {
-    /// Adresa backendului.
+    /// Adresa backendului, luată din Info.plist (cheia `EterenuriApiURL`).
     ///
-    /// În simulator, `localhost` e chiar Mac-ul, deci merge direct cu `next dev`.
-    /// Pe un iPhone real, schimbă cu adresa din rețea a Mac-ului (ex.
-    /// `http://192.168.1.130:3000`) sau cu adresa de producție.
+    /// Atenție: în simulator trebuie `127.0.0.1`, nu `localhost`. „localhost”
+    /// se rezolvă întâi la `::1`, care acolo înseamnă loopback-ul dispozitivului
+    /// simulat, nu al Mac-ului, iar cererile expiră fără niciun mesaj util.
     static var urlBaza: URL {
         if let text = Bundle.main.object(forInfoDictionaryKey: "EterenuriApiURL") as? String,
            !text.isEmpty,
            let url = URL(string: text) {
             return url
         }
-        return URL(string: "http://localhost:3000")!
+        return URL(string: "http://127.0.0.1:3000")!
     }
 
     /// Pozele încărcate în aplicație vin ca „/api/poze/…”, deci au nevoie de gazdă.

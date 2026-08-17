@@ -2,16 +2,38 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- Adresa backendului; schimb-o pentru telefon real sau producție. -->
+	<!-- Adresa backendului.
+	     Simulator: 127.0.0.1 ajunge la Mac. NU folosi „localhost”: se rezolvă
+	     întâi la ::1, care în simulator e loopback-ul dispozitivului simulat,
+	     nu al Mac-ului, iar cererea expiră.
+	     iPhone real: pune adresa Mac-ului din rețea (o vezi la pornirea lui
+	     „npm run dev”, la „Network:”) sau adresa de producție. -->
 	<key>EterenuriApiURL</key>
-	<string>http://localhost:3000</string>
+	<string>http://127.0.0.1:3000</string>
 
-	<!-- Doar în dezvoltare: localhost merge pe HTTP. În producție folosește HTTPS. -->
+	<!-- Doar pentru dezvoltare: iOS blochează implicit HTTP-ul simplu.
+	     Excepțiile de mai jos permit doar serverul local; în producție,
+	     unde folosim https, pot fi scoase. -->
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
+		<key>NSExceptionDomains</key>
+		<dict>
+			<key>127.0.0.1</key>
+			<dict>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<true/>
+				<key>NSIncludesSubdomains</key>
+				<true/>
+			</dict>
+		</dict>
 	</dict>
+
+	<!-- Cerut de iOS când aplicația vorbește cu un server din rețeaua locală
+	     (cazul iPhone-ului real care se conectează la Mac). -->
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Aplicația se conectează la serverul Eterenuri din rețeaua locală.</string>
 
 	<key>UILaunchScreen</key>
 	<dict/>
