@@ -105,7 +105,7 @@ struct CardRezervareBusiness: View {
                     Text(rezervare.teren.nume).font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer()
-                EticheutaStatus(status: rezervare.status)
+                Pastila(text: rezervare.status.eticheta, culoare: rezervare.status.culoare, simbol: rezervare.status.simbol)
             }
 
             Text("\(rezervare.inceput.ziScurta) · \(rezervare.inceput.oraScurta)–\(rezervare.sfarsit.oraScurta)")
@@ -186,7 +186,7 @@ struct PropuneMutareView: View {
                     HStack { Spacer(); Text("Trimite propunerea").fontWeight(.semibold); Spacer() }
                 }
                 .disabled(seTrimite)
-                .listRowBackground(Color.verdeEterenuri)
+                .listRowBackground(Tema.accent)
                 .foregroundStyle(.white)
             }
         }

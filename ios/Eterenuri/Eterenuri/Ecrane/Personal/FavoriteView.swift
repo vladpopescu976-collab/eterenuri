@@ -5,23 +5,30 @@ struct FavoriteView: View {
     @State private var seIncarca = true
 
     var body: some View {
-        List {
-            if seIncarca {
-                HStack { Spacer(); ProgressView(); Spacer() }
-            } else if terenuri.isEmpty {
-                StareGoala(
-                    simbol: "heart",
-                    titlu: "Niciun teren salvat",
-                    detaliu: "Apasă pe inimă pe pagina unui teren ca să îl găsești mai repede."
-                )
-                .listRowSeparator(.hidden)
-            } else {
-                ForEach(terenuri) { teren in
-                    NavigationLink(value: teren.id) { RandTeren(teren: teren) }
+        ZStack {
+            Tema.fundal.ignoresSafeArea()
+            ScrollView {
+                VStack(spacing: 14) {
+                    if seIncarca {
+                        ForEach(0..<2, id: \.self) { _ in ScheletFisa(inaltime: 232) }
+                    } else if terenuri.isEmpty {
+                        StareGoala(
+                            simbol: "heart",
+                            titlu: "Niciun teren salvat",
+                            detaliu: "Apasă pe inimă pe pagina unui teren și îl găsești aici."
+                        )
+                        .fisa()
+                    } else {
+                        ForEach(terenuri) { teren in
+                            NavigationLink(value: teren.id) { CardTeren(teren: teren) }
+                                .buttonStyle(.plain)
+                        }
+                    }
                 }
+                .padding(.horizontal, Tema.spatiu)
+                .padding(.vertical, 8)
             }
         }
-        .listStyle(.plain)
         .navigationTitle("Favorite")
         .navigationDestination(for: String.self) { id in
             DetaliuTerenView(terenId: id)

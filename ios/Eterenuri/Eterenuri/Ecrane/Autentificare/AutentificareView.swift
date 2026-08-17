@@ -41,7 +41,7 @@ private struct AlegereRol: View {
             VStack(spacing: 8) {
                 Image(systemName: "sportscourt.fill")
                     .font(.system(size: 44))
-                    .foregroundStyle(Color.verdeEterenuri)
+                    .foregroundStyle(Tema.accent)
                 Text("Eterenuri")
                     .font(.largeTitle.bold())
                 Text("Închiriază terenuri sportive în câteva secunde.")
@@ -82,9 +82,9 @@ private struct CardRol: View {
             HStack(spacing: 14) {
                 Image(systemName: simbol)
                     .font(.title2)
-                    .foregroundStyle(Color.verdeEterenuri)
+                    .foregroundStyle(Tema.accent)
                     .frame(width: 44, height: 44)
-                    .background(Color.verdeEterenuri.opacity(0.12), in: .rect(cornerRadius: 12))
+                    .background(Tema.accent.opacity(0.12), in: .rect(cornerRadius: 12))
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(titlu).font(.headline)
@@ -185,7 +185,7 @@ private struct FormularAutentificare: View {
                     }
                 }
                 .disabled(seTrimite)
-                .listRowBackground(Color.verdeEterenuri)
+                .listRowBackground(Tema.accent)
                 .foregroundStyle(.white)
             } footer: {
                 if seTrimite {

@@ -9,7 +9,8 @@ struct EterenuriApp: App {
             RadacinaView()
                 .environment(sesiune)
                 .task { await sesiune.porneste() }
-                .tint(.verdeEterenuri)
+                .tint(Tema.accent)
+                .environment(\.locale, .aplicatie)
         }
     }
 }
@@ -33,9 +34,4 @@ struct RadacinaView: View {
         }
         .animation(.easeInOut(duration: 0.25), value: sesiune.esteConectat)
     }
-}
-
-extension Color {
-    /// Verdele din identitatea web.
-    static let verdeEterenuri = Color(red: 0.13, green: 0.55, blue: 0.29)
 }

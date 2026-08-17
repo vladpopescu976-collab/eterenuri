@@ -8,30 +8,37 @@ struct RezervarileMeleView: View {
     @State private var deRecenzat: Rezervare?
 
     var body: some View {
-        List {
-            if seIncarca {
-                HStack { Spacer(); ProgressView(); Spacer() }
-            } else if rezervari.isEmpty {
-                StareGoala(
-                    simbol: "calendar.badge.plus",
-                    titlu: "Nicio rezervare încă",
-                    detaliu: "Caută un teren și trimite prima cerere."
-                )
-                .listRowSeparator(.hidden)
-            } else {
-                ForEach(rezervari) { rezervare in
-                    CardRezervarePersonal(
-                        rezervare: rezervare,
-                        muta: { deMutat = rezervare },
-                        anuleaza: { Task { await actiune(rezervare, "anuleaza") } },
-                        accepta: { Task { await actiune(rezervare, "accepta-mutarea") } },
-                        refuza: { Task { await actiune(rezervare, "refuza-mutarea") } },
-                        recenzeaza: { deRecenzat = rezervare }
-                    )
+        ZStack {
+            Tema.fundal.ignoresSafeArea()
+            ScrollView {
+                VStack(spacing: 14) {
+                    if seIncarca {
+                        ForEach(0..<2, id: \.self) { _ in ScheletFisa(inaltime: 150) }
+                    } else if rezervari.isEmpty {
+                        StareGoala(
+                            simbol: "calendar.badge.plus",
+                            titlu: "Nicio rezervare încă",
+                            detaliu: "Caută un teren și trimite prima cerere."
+                        )
+                        .fisa()
+                    } else {
+                        ForEach(rezervari) { rezervare in
+                            CardRezervarePersonal(
+                                rezervare: rezervare,
+                                muta: { deMutat = rezervare },
+                                anuleaza: { Task { await actiune(rezervare, "anuleaza") } },
+                                accepta: { Task { await actiune(rezervare, "accepta-mutarea") } },
+                                refuza: { Task { await actiune(rezervare, "refuza-mutarea") } },
+                                recenzeaza: { deRecenzat = rezervare }
+                            )
+                            .fisa()
+                        }
+                    }
                 }
+                .padding(.horizontal, Tema.spatiu)
+                .padding(.vertical, 8)
             }
         }
-        .listStyle(.plain)
         .navigationTitle("Rezervările mele")
         .refreshable { await incarca() }
         .task { await incarca() }
@@ -120,7 +127,7 @@ struct CardRezervarePersonal: View {
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer()
-                EticheutaStatus(status: rezervare.status)
+                Pastila(text: rezervare.status.eticheta, culoare: rezervare.status.culoare, simbol: rezervare.status.simbol)
             }
 
             Text("\(rezervare.inceput.ziScurta) · \(rezervare.inceput.oraScurta)–\(rezervare.sfarsit.oraScurta)")
@@ -165,7 +172,7 @@ struct CardRezervarePersonal: View {
                 }
                 .padding(10)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color(.secondarySystemBackground), in: .rect(cornerRadius: 10))
+                .background(Tema.fundal, in: .rect(cornerRadius: 10))
             } else if incheiata && rezervare.status == .confirmata {
                 Button("Lasă o recenzie", systemImage: "star", action: recenzeaza)
                     .font(.footnote).buttonStyle(.bordered).controlSize(.small)
@@ -181,8 +188,7 @@ struct CardRezervarePersonal: View {
                 .font(.footnote)
             }
         }
-        .padding(.vertical, 6)
-    }
+            }
 }
 
 struct LasaRecenzieView: View {
@@ -225,7 +231,7 @@ struct LasaRecenzieView: View {
                     HStack { Spacer(); Text("Trimite recenzia").fontWeight(.semibold); Spacer() }
                 }
                 .disabled(nota < 1 || seTrimite)
-                .listRowBackground(nota < 1 ? Color.gray.opacity(0.3) : Color.verdeEterenuri)
+                .listRowBackground(nota < 1 ? Color.gray.opacity(0.3) : Tema.accent)
                 .foregroundStyle(.white)
             }
         }

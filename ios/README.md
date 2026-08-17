@@ -34,6 +34,16 @@ altfel cererile sunt blocate în tăcere. Calculatorul și telefonul trebuie să
 Pentru producție folosește **https**, iar excepția `NSAllowsLocalNetworking`
 din Info.plist poate fi scoasă.
 
+## Testare
+
+Build-urile de dezvoltare acceptă variabila `ETERENURI_TOKEN`, care pornește
+aplicația deja conectată — utilă pentru verificări automate, fără a trece prin
+tastatură. Nu există în build-ul final.
+
+```bash
+SIMCTL_CHILD_ETERENURI_TOKEN="<token>" xcrun simctl launch booted ro.eterenuri.app
+```
+
 ## Structura
 
 ```

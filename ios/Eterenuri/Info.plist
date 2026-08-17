@@ -35,6 +35,13 @@
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Aplicația se conectează la serverul Eterenuri din rețeaua locală.</string>
 
+	<key>CFBundleDevelopmentRegion</key>
+	<string>ro</string>
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>ro</string>
+	</array>
+
 	<key>UILaunchScreen</key>
 	<dict/>
 </dict>

@@ -16,6 +16,15 @@ final class Sesiune {
 
     func porneste() async {
         defer { seIncarca = false }
+
+        #if DEBUG
+        // Cârlig pentru testare automată: permite pornirea aplicației deja
+        // conectată, fără a trece prin tastatură. Nu există în build-ul final.
+        if let dinMediu = ProcessInfo.processInfo.environment["ETERENURI_TOKEN"], !dinMediu.isEmpty {
+            Keychain.scrie(cheieToken, valoare: dinMediu)
+        }
+        #endif
+
         guard let token = Keychain.citeste(cheieToken) else { return }
 
         await ApiClient.shared.seteazaToken(token)

@@ -46,7 +46,7 @@ struct RecenziiBusinessView: View {
                         }
                         if let raspuns = recenzie.raspunsProprietar, !raspuns.isEmpty {
                             Text("Răspunsul tău: \(raspuns)")
-                                .font(.caption).foregroundStyle(Color.verdeEterenuri)
+                                .font(.caption).foregroundStyle(Tema.accent)
                         }
                         Button(
                             recenzie.raspunsProprietar == nil ? "Răspunde" : "Modifică răspunsul",
@@ -115,7 +115,7 @@ struct RaspundeRecenzieView: View {
                     HStack { Spacer(); Text("Publică răspunsul").fontWeight(.semibold); Spacer() }
                 }
                 .disabled(seTrimite || text.trimmingCharacters(in: .whitespaces).isEmpty)
-                .listRowBackground(Color.verdeEterenuri)
+                .listRowBackground(Tema.accent)
                 .foregroundStyle(.white)
             }
         }

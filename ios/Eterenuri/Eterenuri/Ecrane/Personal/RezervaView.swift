@@ -1,11 +1,14 @@
 import SwiftUI
 
-/// Alegerea zilei și a intervalului, cu orele deja ocupate marcate ca atare.
-/// Folosit și la rezervare nouă, și la mutarea uneia existente.
+/// Alegerea zilei și a intervalului. Ideea de bază: ziua se vede întreagă, cu
+/// orele libere și cele ocupate una lângă alta, ca să nu trebuiască încercat
+/// „la ghici” ce e disponibil.
 struct RezervaView: View {
     let teren: Teren
     /// Prezent când mutăm o rezervare — o excludem din orele ocupate.
     var rezervareExistenta: Rezervare?
+    /// Ziua pe care se deschide ecranul; implicit, azi.
+    var ziInitiala: Date?
     var laFinal: () -> Void
 
     @Environment(\.dismiss) private var inchide
@@ -20,111 +23,259 @@ struct RezervaView: View {
     @State private var eroare: String?
 
     private var esteMutare: Bool { rezervareExistenta != nil }
+    private var ore: [Int] { Array(teren.oraDeschidere..<teren.oraInchidere) }
 
-    private var oreDisponibile: [Int] {
-        Array(teren.oraDeschidere..<teren.oraInchidere)
-    }
+    private var oreLibere: Int { ore.filter { !esteOcupata($0) }.count }
 
     var body: some View {
-        Form {
-            Section("Data") {
-                DatePicker("Ziua", selection: $zi, in: Date()..., displayedComponents: .date)
-                    .datePickerStyle(.compact)
-                    .onChange(of: zi) { _, _ in
-                        oraStart = nil
-                        oraSfarsit = nil
-                        Task { await incarcaOre() }
-                    }
+        ZStack(alignment: .bottom) {
+            Tema.fundal.ignoresSafeArea()
+
+            ScrollView {
+                VStack(spacing: 14) {
+                    selectorZile
+                    rezumatZi
+                    grilaOre
+                    if !esteMutare { campObservatii }
+                    if let eroare { casetaEroare(eroare) }
+                    Color.clear.frame(height: 130)
+                }
+                .padding(.horizontal, Tema.spatiu)
+                .padding(.top, 8)
             }
 
-            Section {
-                if seIncarcaOre {
-                    HStack { Spacer(); ProgressView(); Spacer() }
-                } else {
-                    LazyVGrid(columns: [.init(.adaptive(minimum: 66), spacing: 8)], spacing: 8) {
-                        ForEach(oreDisponibile, id: \.self) { ora in
-                            ButonOra(
-                                ora: ora,
-                                stare: stareOra(ora),
-                                apasa: { alegeOra(ora) }
-                            )
-                        }
-                    }
-                    .padding(.vertical, 4)
-                }
-            } header: {
-                Text("Interval")
-            } footer: {
-                if !ocupate.isEmpty && !seIncarcaOre {
-                    Text("Orele gri sunt deja rezervate sau blocate de proprietar.")
-                } else if !seIncarcaOre {
-                    Text("Toate orele sunt libere în această zi.")
-                }
-            }
-
-            if let start = oraStart, let sfarsit = oraSfarsit {
-                Section {
-                    LabeledContent("Interval", value: "\(format(start)) – \(format(sfarsit))")
-                    LabeledContent("Durată", value: "\(sfarsit - start) ore")
-                    LabeledContent("Total", value: "\(Int(teren.pretPeOra) * (sfarsit - start)) RON")
-                }
-            }
-
-            if !esteMutare {
-                Section("Observații (opțional)") {
-                    TextField("Ex. avem nevoie de mingi.", text: $observatii, axis: .vertical)
-                        .lineLimit(2...4)
-                }
-            }
-
-            if let eroare {
-                Section { Text(eroare).font(.footnote).foregroundStyle(.red) }
-            }
-
-            Section {
-                Button(action: trimite) {
-                    HStack {
-                        Spacer()
-                        if seTrimite {
-                            ProgressView().tint(.white)
-                        } else {
-                            Text(esteMutare ? "Salvează modificarea" : "Trimite cererea")
-                                .fontWeight(.semibold)
-                        }
-                        Spacer()
-                    }
-                }
-                .disabled(seTrimite || oraStart == nil || oraSfarsit == nil)
-                .listRowBackground(
-                    (oraStart == nil || oraSfarsit == nil) ? Color.gray.opacity(0.3) : Color.verdeEterenuri
-                )
-                .foregroundStyle(.white)
-            }
+            bataieDeSubsol
         }
-        .navigationTitle(esteMutare ? "Modifică rezervarea" : teren.nume)
+        .navigationTitle(esteMutare ? "Modifică rezervarea" : "Rezervă")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
-                Button("Anulează") { inchide() }
-            }
+            ToolbarItem(placement: .cancellationAction) { Button("Închide") { inchide() } }
         }
         .task {
-            if let existenta = rezervareExistenta { zi = existenta.inceput }
+            if let existenta = rezervareExistenta {
+                zi = existenta.inceput
+            } else if let ziInitiala {
+                zi = ziInitiala
+            }
             await incarcaOre()
         }
     }
 
-    // MARK: - Stare ore
+    // MARK: - Zile
 
-    enum StareOra { case libera, ocupata, aleasa, inInterval }
+    /// Următoarele două săptămâni, ca schimbarea zilei să fie un singur tap.
+    private var zileApropiate: [Date] {
+        let calendar = Calendar.current
+        let azi = calendar.startOfDay(for: Date())
+        return (0..<14).compactMap { calendar.date(byAdding: .day, value: $0, to: azi) }
+    }
+
+    private var selectorZile: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(zileApropiate, id: \.self) { data in
+                    let aleasa = Calendar.current.isDate(data, inSameDayAs: zi)
+                    Button {
+                        withAnimation(.snappy) {
+                            zi = data
+                            oraStart = nil
+                            oraSfarsit = nil
+                            eroare = nil
+                        }
+                        Task { await incarcaOre() }
+                    } label: {
+                        VStack(spacing: 3) {
+                            Text(data.zileiPrescurtat)
+                                .font(.caption2.weight(.medium))
+                                .textCase(.uppercase)
+                            Text(data.numarZi)
+                                .font(.title3.weight(.semibold))
+                            if Calendar.current.isDateInToday(data) {
+                                Circle().frame(width: 4, height: 4)
+                            } else {
+                                Color.clear.frame(width: 4, height: 4)
+                            }
+                        }
+                        .frame(width: 52, height: 68)
+                        .background {
+                            if aleasa {
+                                Tema.gradientAccent
+                            } else {
+                                Tema.fisa
+                            }
+                        }
+                        .foregroundStyle(aleasa ? .white : .primary)
+                        .clipShape(.rect(cornerRadius: 14, style: .continuous))
+                    }
+                    .apasabil()
+                }
+            }
+            .padding(.vertical, 2)
+        }
+    }
+
+    // MARK: - Rezumatul zilei
+
+    private var rezumatZi: some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(zi.ziLunga.capitalized).font(.subheadline.weight(.semibold))
+                if seIncarcaOre {
+                    Text("Se verifică disponibilitatea…")
+                        .font(.caption).foregroundStyle(.secondary)
+                } else if oreLibere == 0 {
+                    Text("Nicio oră liberă în această zi")
+                        .font(.caption).foregroundStyle(Tema.ocupat)
+                } else {
+                    Text("\(oreLibere) din \(ore.count) ore libere")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            Spacer()
+
+            // Bara arată dintr-o privire cât de plină e ziua.
+            if !seIncarcaOre {
+                HStack(spacing: 2) {
+                    ForEach(ore, id: \.self) { ora in
+                        Capsule()
+                            .fill(esteOcupata(ora) ? Tema.ocupat.opacity(0.75) : Tema.accent.opacity(0.35))
+                            .frame(width: 3, height: 22)
+                    }
+                }
+            }
+        }
+        .fisa()
+    }
+
+    // MARK: - Orele
+
+    private var grilaOre: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text(indicatie).font(.subheadline.weight(.medium))
+                Spacer()
+                if oraStart != nil {
+                    Button("Șterge") {
+                        withAnimation(.snappy) {
+                            oraStart = nil
+                            oraSfarsit = nil
+                            eroare = nil
+                        }
+                    }
+                    .font(.caption.weight(.medium))
+                }
+            }
+
+            if seIncarcaOre {
+                LazyVGrid(columns: [.init(.adaptive(minimum: 74), spacing: 8)], spacing: 8) {
+                    ForEach(ore, id: \.self) { _ in ScheletFisa(inaltime: 46) }
+                }
+            } else {
+                LazyVGrid(columns: [.init(.adaptive(minimum: 74), spacing: 8)], spacing: 8) {
+                    ForEach(ore, id: \.self) { ora in
+                        CelulaOra(eticheta: format(ora), stare: stareOra(ora)) { alegeOra(ora) }
+                    }
+                }
+            }
+
+            legenda
+        }
+        .fisa()
+    }
+
+    private var indicatie: String {
+        if oraStart == nil { return "Alege ora de început" }
+        if oraSfarsit == nil { return "Alege ora de sfârșit" }
+        return "Intervalul ales"
+    }
+
+    private var legenda: some View {
+        HStack(spacing: 14) {
+            eticheta(culoare: Tema.fisa, contur: true, text: "Liber")
+            eticheta(culoare: Tema.ocupat.opacity(0.16), contur: false, text: "Ocupat")
+            eticheta(culoare: Tema.accent, contur: false, text: "Ales")
+            Spacer()
+        }
+        .padding(.top, 2)
+    }
+
+    private func eticheta(culoare: Color, contur: Bool, text: String) -> some View {
+        HStack(spacing: 5) {
+            RoundedRectangle(cornerRadius: 4)
+                .fill(culoare)
+                .frame(width: 14, height: 14)
+                .overlay {
+                    if contur {
+                        RoundedRectangle(cornerRadius: 4).stroke(.secondary.opacity(0.3))
+                    }
+                }
+            Text(text).font(.caption2).foregroundStyle(.secondary)
+        }
+    }
+
+    private var campObservatii: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Observații (opțional)").font(.subheadline.weight(.medium))
+            TextField("Ex. avem nevoie de mingi.", text: $observatii, axis: .vertical)
+                .lineLimit(2...4)
+                .padding(10)
+                .background(Tema.fundal, in: .rect(cornerRadius: Tema.razaMica, style: .continuous))
+        }
+        .fisa()
+    }
+
+    private func casetaEroare(_ mesaj: String) -> some View {
+        Label(mesaj, systemImage: "exclamationmark.triangle.fill")
+            .font(.footnote)
+            .foregroundStyle(Tema.ocupat)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(12)
+            .background(Tema.ocupat.opacity(0.10), in: .rect(cornerRadius: Tema.razaMica, style: .continuous))
+    }
+
+    // MARK: - Subsolul cu totalul
+
+    private var bataieDeSubsol: some View {
+        VStack(spacing: 10) {
+            if let start = oraStart, let sfarsit = oraSfarsit {
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("\(format(start)) – \(format(sfarsit))")
+                            .font(.subheadline.weight(.semibold))
+                        Text("\(sfarsit - start) \(sfarsit - start == 1 ? "oră" : "ore") · \(zi.ziScurta)")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Text("\(Int(teren.pretPeOra) * (sfarsit - start)) RON")
+                        .font(.title3.weight(.bold))
+                }
+                .transition(.opacity.combined(with: .move(edge: .bottom)))
+            }
+
+            ButonPrincipal(
+                titlu: esteMutare ? "Salvează modificarea" : "Trimite cererea",
+                simbol: esteMutare ? "checkmark" : "paperplane.fill",
+                seIncarca: seTrimite,
+                activ: oraStart != nil && oraSfarsit != nil,
+                actiune: trimite
+            )
+        }
+        .padding(Tema.spatiu)
+        .background(.regularMaterial)
+        .animation(.snappy, value: oraSfarsit)
+    }
+
+    // MARK: - Stări ore
+
+    enum StareOra { case libera, ocupata, inceput, sfarsit, inInterval }
 
     private func stareOra(_ ora: Int) -> StareOra {
+        if ora == oraStart { return .inceput }
+        if let sfarsit = oraSfarsit, ora == sfarsit - 1 { return .sfarsit }
         if let start = oraStart, let sfarsit = oraSfarsit, ora > start, ora < sfarsit {
             return .inInterval
         }
-        if ora == oraStart { return .aleasa }
-        if esteOcupata(ora) { return .ocupata }
-        return .libera
+        return esteOcupata(ora) ? .ocupata : .libera
     }
 
     private func esteOcupata(_ ora: Int) -> Bool {
@@ -133,35 +284,43 @@ struct RezervaView: View {
             let inceput = calendar.date(bySettingHour: ora, minute: 0, second: 0, of: zi),
             let sfarsit = calendar.date(byAdding: .hour, value: 1, to: inceput)
         else { return false }
+
+        // Orele deja trecute din ziua curentă nu mai pot fi rezervate.
+        if sfarsit <= Date() { return true }
+
         return ocupate.contains { $0.inceput < sfarsit && $0.sfarsit > inceput }
     }
 
     private func alegeOra(_ ora: Int) {
-        eroare = nil
-
         if esteOcupata(ora) {
-            eroare = "Intervalul \(format(ora)) este deja rezervat. Alege altă oră."
+            let trecut = Calendar.current.isDateInToday(zi)
+                && (Calendar.current.date(bySettingHour: ora, minute: 59, second: 0, of: zi) ?? .distantPast) < Date()
+            eroare = trecut
+                ? "Ora \(format(ora)) a trecut deja."
+                : "Intervalul \(format(ora))–\(format(ora + 1)) este deja ocupat. Alege altă oră."
             return
         }
 
-        // Prima apăsare fixează startul, a doua sfârșitul.
-        guard let start = oraStart, oraSfarsit == nil, ora > start else {
-            oraStart = ora
-            oraSfarsit = nil
-            return
-        }
+        withAnimation(.snappy) {
+            eroare = nil
 
-        // Tot intervalul dintre start și ora aleasă trebuie să fie liber.
-        if (start..<ora).contains(where: esteOcupata) {
-            eroare = "Intervalul \(format(start)) – \(format(ora)) trece peste o rezervare existentă."
-            return
+            // Prima apăsare fixează începutul, a doua sfârșitul.
+            guard let start = oraStart, oraSfarsit == nil, ora > start else {
+                oraStart = ora
+                oraSfarsit = nil
+                return
+            }
+
+            // Tot intervalul dintre început și ora aleasă trebuie să fie liber.
+            if (start..<ora).contains(where: esteOcupata) {
+                eroare = "Între \(format(start)) și \(format(ora)) există ore ocupate. Alege alt interval."
+                return
+            }
+            oraSfarsit = ora
         }
-        oraSfarsit = ora
     }
 
-    private func format(_ ora: Int) -> String {
-        String(format: "%02d:00", ora)
-    }
+    private func format(_ ora: Int) -> String { String(format: "%02d:00", ora) }
 
     // MARK: - Rețea
 
@@ -190,8 +349,8 @@ struct RezervaView: View {
         let calendar = Calendar.current
         guard
             let inceput = calendar.date(bySettingHour: start, minute: 0, second: 0, of: zi),
-            let final = calendar.date(bySettingHour: 0, minute: 0, second: 0, of: zi)
-                .flatMap({ calendar.date(byAdding: .hour, value: sfarsit, to: $0) })
+            let miezul = calendar.date(bySettingHour: 0, minute: 0, second: 0, of: zi),
+            let final = calendar.date(byAdding: .hour, value: sfarsit, to: miezul)
         else { return }
 
         eroare = nil
@@ -207,8 +366,7 @@ struct RezervaView: View {
                         let sfarsit: Date
                     }
                     try await ApiClient.shared.cereFaraRaspuns(
-                        "rezervari/\(existenta.id)",
-                        metoda: "PATCH",
+                        "rezervari/\(existenta.id)", metoda: "PATCH",
                         corp: Corp(inceput: inceput, sfarsit: final)
                     )
                 } else {
@@ -219,12 +377,9 @@ struct RezervaView: View {
                         let observatii: String?
                     }
                     try await ApiClient.shared.cereFaraRaspuns(
-                        "rezervari",
-                        metoda: "POST",
+                        "rezervari", metoda: "POST",
                         corp: Corp(
-                            terenId: teren.id,
-                            inceput: inceput,
-                            sfarsit: final,
+                            terenId: teren.id, inceput: inceput, sfarsit: final,
                             observatii: observatii.isEmpty ? nil : observatii
                         )
                     )
@@ -233,50 +388,64 @@ struct RezervaView: View {
                 inchide()
             } catch {
                 eroare = error.localizedDescription
+                // Cineva poate fi luat intervalul între timp, deci reîmprospătăm.
                 await incarcaOre()
+                withAnimation { oraStart = nil; oraSfarsit = nil }
             }
         }
     }
 }
 
-private struct ButonOra: View {
-    let ora: Int
+private struct CelulaOra: View {
+    let eticheta: String
     let stare: RezervaView.StareOra
     let apasa: () -> Void
 
     var body: some View {
         Button(action: apasa) {
-            Text(String(format: "%02d:00", ora))
-                .font(.footnote.weight(.medium))
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 9)
-                .background(fundal, in: .rect(cornerRadius: 9))
-                .foregroundStyle(text)
-                .overlay {
-                    if stare == .ocupata {
-                        RoundedRectangle(cornerRadius: 9)
-                            .stroke(.secondary.opacity(0.25), style: .init(lineWidth: 1, dash: [3, 3]))
-                    }
+            VStack(spacing: 2) {
+                Text(eticheta).font(.subheadline.weight(.semibold))
+                if stare == .ocupata {
+                    Text("ocupat").font(.system(size: 9, weight: .medium))
                 }
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 46)
+            .background(fundal)
+            .foregroundStyle(culoareText)
+            .clipShape(.rect(cornerRadius: Tema.razaMica, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: Tema.razaMica, style: .continuous)
+                    .stroke(contur, lineWidth: 1)
+            }
         }
-        .buttonStyle(.plain)
+        .apasabil()
     }
 
-    private var fundal: Color {
+    @ViewBuilder
+    private var fundal: some View {
         switch stare {
-        case .aleasa: Color.verdeEterenuri
-        case .inInterval: Color.verdeEterenuri.opacity(0.25)
-        case .ocupata: Color(.tertiarySystemFill)
-        case .libera: Color(.secondarySystemBackground)
+        case .inceput, .sfarsit: Tema.gradientAccent
+        case .inInterval: Tema.accent.opacity(0.18)
+        case .ocupata: Tema.ocupat.opacity(0.10)
+        case .libera: Tema.fundal
         }
     }
 
-    private var text: Color {
+    private var culoareText: Color {
         switch stare {
-        case .aleasa: .white
-        case .inInterval: .primary
-        case .ocupata: .secondary.opacity(0.6)
+        case .inceput, .sfarsit: .white
+        case .inInterval: Tema.accent
+        case .ocupata: Tema.ocupat.opacity(0.85)
         case .libera: .primary
+        }
+    }
+
+    private var contur: Color {
+        switch stare {
+        case .ocupata: Tema.ocupat.opacity(0.25)
+        case .libera: .secondary.opacity(0.18)
+        default: .clear
         }
     }
 }

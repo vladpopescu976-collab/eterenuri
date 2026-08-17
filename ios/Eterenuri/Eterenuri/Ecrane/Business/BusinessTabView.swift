@@ -27,9 +27,14 @@ struct AnsambluView: View {
     @State private var seIncarca = true
 
     var body: some View {
+        ZStack {
+        Tema.fundal.ignoresSafeArea()
         ScrollView {
             if seIncarca {
-                ProgressView().padding(.top, 60)
+                VStack(spacing: 12) {
+                    ForEach(0..<3, id: \.self) { _ in ScheletFisa(inaltime: 90) }
+                }
+                .padding()
             } else if let s = statistici {
                 VStack(spacing: 16) {
                     LazyVGrid(columns: [.init(.flexible()), .init(.flexible())], spacing: 12) {
@@ -49,7 +54,7 @@ struct AnsambluView: View {
                                         GeometryReader { geo in
                                             let maxim = s.oreDeVarf.map(\.rezervari).max() ?? 1
                                             Capsule()
-                                                .fill(Color.verdeEterenuri.opacity(0.7))
+                                                .fill(Tema.accent.opacity(0.7))
                                                 .frame(
                                                     width: geo.size.width
                                                         * CGFloat(ora.rezervari) / CGFloat(maxim)
@@ -86,6 +91,7 @@ struct AnsambluView: View {
                 .padding()
             }
         }
+        }
         .navigationTitle("Privire de ansamblu")
         .refreshable { await incarca() }
         .task { await incarca() }
@@ -107,13 +113,14 @@ struct Kpi: View {
             HStack {
                 Text(titlu).font(.caption).foregroundStyle(.secondary)
                 Spacer()
-                Image(systemName: simbol).font(.caption).foregroundStyle(Color.verdeEterenuri)
+                Image(systemName: simbol).font(.caption).foregroundStyle(Tema.accent)
             }
             Text(valoare).font(.title3.bold())
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .background(Color(.secondarySystemBackground), in: .rect(cornerRadius: 14))
+        .background(Tema.fisa, in: .rect(cornerRadius: Tema.razaFisa, style: .continuous))
+        .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 4)
     }
 }
 
@@ -133,6 +140,7 @@ struct Sectiune<Continut: View>: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .background(Color(.secondarySystemBackground), in: .rect(cornerRadius: 14))
+        .background(Tema.fisa, in: .rect(cornerRadius: Tema.razaFisa, style: .continuous))
+        .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 4)
     }
 }

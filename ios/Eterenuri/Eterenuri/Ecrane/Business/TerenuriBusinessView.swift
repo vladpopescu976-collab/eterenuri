@@ -156,7 +156,7 @@ struct BlocheazaOreView: View {
                     HStack { Spacer(); Text("Blochează").fontWeight(.semibold); Spacer() }
                 }
                 .disabled(seTrimite || oraSfarsit <= oraStart)
-                .listRowBackground(Color.verdeEterenuri)
+                .listRowBackground(Tema.accent)
                 .foregroundStyle(.white)
             }
         }
