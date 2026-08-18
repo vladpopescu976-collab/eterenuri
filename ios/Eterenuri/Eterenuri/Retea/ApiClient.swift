@@ -130,7 +130,9 @@ actor ApiClient {
 
         switch urlError.code {
         case .cannotConnectToHost where eLoopback, .timedOut where eLoopback:
-            return "Pe telefon, \(adresa) înseamnă telefonul însuși, nu calculatorul. Pune adresa calculatorului din rețea la „Adresa serverului”."
+            // Aceeași adresă înseamnă altceva în simulator și pe un telefon
+            // real, deci mesajul le acoperă pe amândouă.
+            return "Nu răspunde nimic la \(adresa). Verifică dacă serverul rulează („npm run dev”). Pe un telefon real, această adresă înseamnă telefonul însuși — pune adresa calculatorului din rețea la „Adresa serverului”."
         case .cannotConnectToHost:
             return "Serverul de la \(adresa) nu răspunde. Pornește-l cu „npm run dev” sau schimbă EterenuriApiURL din Info.plist."
         case .cannotFindHost:

@@ -49,9 +49,20 @@ struct PersonalTabView: View {
 
 struct ContView: View {
     @Environment(Sesiune.self) private var sesiune
+    @Environment(\.dismiss) private var inchide
 
     var body: some View {
         List {
+            if sesiune.utilizator == nil {
+                CereCont(
+                    simbol: "person.crop.circle",
+                    titlu: "Nu ești conectat",
+                    detaliu: "Poți răsfoi terenurile liber. Pentru rezervări și favorite ai nevoie de un cont Personal, iar dacă ai terenuri, de unul Business."
+                )
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+            }
+
             if let utilizator = sesiune.utilizator {
                 Section {
                     LabeledContent("Nume", value: utilizator.nume)
@@ -63,9 +74,12 @@ struct ContView: View {
                 }
             }
 
-            Section {
-                Button("Deconectare", role: .destructive) {
-                    Task { await sesiune.deconecteaza() }
+            if sesiune.esteConectat {
+                Section {
+                    Button("Deconectare", role: .destructive) {
+                        Task { await sesiune.deconecteaza() }
+                        inchide()
+                    }
                 }
             }
         }

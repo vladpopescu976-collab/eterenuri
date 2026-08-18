@@ -69,7 +69,12 @@ struct CautaTerenuriView: View {
 
     private var antet: some View {
         VStack(spacing: 16) {
-            baraDeCautare
+            HStack(spacing: 10) {
+                baraDeCautare
+                ButonCont()
+            }
+            .padding(.horizontal, 20)
+
             categorii
         }
         .padding(.top, 8)
@@ -119,7 +124,6 @@ struct CautaTerenuriView: View {
             .shadow(color: .black.opacity(0.08), radius: 10, x: 0, y: 4)
         }
         .buttonStyle(.plain)
-        .padding(.horizontal, 20)
     }
 
     private var subtitluCautare: String {

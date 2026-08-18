@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct RezervarileMeleView: View {
+    @Environment(Sesiune.self) private var sesiune
+
     @State private var rezervari: [Rezervare] = []
     @State private var seIncarca = true
     @State private var eroare: String?
@@ -12,7 +14,14 @@ struct RezervarileMeleView: View {
             Tema.fundal.ignoresSafeArea()
             ScrollView {
                 VStack(spacing: 14) {
-                    if seIncarca {
+                    if !sesiune.esteConectat {
+                        CereCont(
+                            simbol: "calendar.badge.plus",
+                            titlu: "Rezervările tale, într-un loc",
+                            detaliu: "Conectează-te ca să rezervi terenuri și să îți urmărești cererile."
+                        )
+                        .fisa()
+                    } else if seIncarca {
                         ForEach(0..<2, id: \.self) { _ in ScheletFisa(inaltime: 150) }
                     } else if rezervari.isEmpty {
                         StareGoala(
@@ -40,8 +49,8 @@ struct RezervarileMeleView: View {
             }
         }
         .navigationTitle("Rezervările mele")
-        .refreshable { await incarca() }
-        .task { await incarca() }
+        .refreshable { if sesiune.esteConectat { await incarca() } }
+        .task { if sesiune.esteConectat { await incarca() } }
         .sheet(item: $deMutat) { rezervare in
             NavigationStack {
                 MutaRezervareView(rezervare: rezervare) { Task { await incarca() } }

@@ -2,6 +2,7 @@ import SwiftUI
 
 struct AutentificareView: View {
     @Environment(Sesiune.self) private var sesiune
+    @Environment(\.dismiss) private var inchide
 
     @State private var rolAles: Rol?
     @State private var modInregistrare = false
@@ -19,6 +20,9 @@ struct AutentificareView: View {
                     modInregistrare = false
                 }
                 .toolbar {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button("Închide") { inchide() }
+                    }
                     ToolbarItem(placement: .topBarTrailing) {
                         Button("Server", systemImage: "server.rack") { arataSetari = true }
                     }
@@ -27,6 +31,11 @@ struct AutentificareView: View {
         }
         .sheet(isPresented: $arataSetari) {
             NavigationStack { SetariServerView() }
+        }
+        // Conectarea se face dintr-o foaie deschisă peste aplicație; odată
+        // reușită, foaia nu mai are ce arăta.
+        .onChange(of: sesiune.esteConectat) { _, conectat in
+            if conectat { inchide() }
         }
     }
 }

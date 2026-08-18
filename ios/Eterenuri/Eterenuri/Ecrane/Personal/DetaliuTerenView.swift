@@ -7,6 +7,9 @@ struct DetaliuTerenView: View {
     @State private var eroare: String?
     @State private var favorit = false
     @State private var arataRezervare = false
+    @State private var arataAutentificarea = false
+
+    @Environment(Sesiune.self) private var sesiune
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -31,6 +34,10 @@ struct DetaliuTerenView: View {
             if detaliu != nil && detaliu?.esteProprietar == false {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
+                        guard sesiune.esteConectat else {
+                            arataAutentificarea = true
+                            return
+                        }
                         Task { await comutaFavorit() }
                     } label: {
                         Image(systemName: favorit ? "heart.fill" : "heart")
@@ -40,6 +47,7 @@ struct DetaliuTerenView: View {
             }
         }
         .task { await incarca() }
+        .sheet(isPresented: $arataAutentificarea) { AutentificareView() }
         .sheet(isPresented: $arataRezervare) {
             if let teren = detaliu?.teren {
                 NavigationStack {
@@ -177,8 +185,16 @@ struct DetaliuTerenView: View {
                 Text("pe oră").font(.caption2).foregroundStyle(.secondary)
             }
 
-            ButonPrincipal(titlu: "Vezi orele libere", simbol: "calendar") {
-                arataRezervare = true
+            // Terenul se poate răsfoi fără cont, dar rezervarea cere unul.
+            ButonPrincipal(
+                titlu: sesiune.esteConectat ? "Vezi orele libere" : "Conectează-te ca să rezervi",
+                simbol: sesiune.esteConectat ? "calendar" : "person.crop.circle"
+            ) {
+                if sesiune.esteConectat {
+                    arataRezervare = true
+                } else {
+                    arataAutentificarea = true
+                }
             }
         }
         .padding(Tema.spatiu)
