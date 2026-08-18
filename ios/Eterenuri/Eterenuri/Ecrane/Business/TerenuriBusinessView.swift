@@ -6,6 +6,8 @@ struct TerenuriBusinessView: View {
     @State private var seIncarca = true
     @State private var eroare: String?
     @State private var deBlocatPeTeren: Teren?
+    @State private var deEditat: Teren?
+    @State private var adaugaTeren = false
 
     var body: some View {
         List {
@@ -15,7 +17,9 @@ struct TerenuriBusinessView: View {
                 StareGoala(
                     simbol: "sportscourt",
                     titlu: "Niciun teren adăugat",
-                    detaliu: "Adaugă primul teren din aplicația web ca să apară aici."
+                    detaliu: "Adaugă primul teren cu butonul din dreapta sus.",
+                    titluActiune: "Adaugă un teren",
+                    actiune: { adaugaTeren = true }
                 )
                 .listRowSeparator(.hidden)
             } else {
@@ -41,6 +45,11 @@ struct TerenuriBusinessView: View {
                                     .background(Color.secondary.opacity(0.15), in: .capsule)
                             }
                         }
+
+                        Button("Modifică terenul", systemImage: "pencil") {
+                            deEditat = teren
+                        }
+                        .font(.footnote)
 
                         Button("Blochează ore", systemImage: "lock") {
                             deBlocatPeTeren = teren
@@ -72,8 +81,23 @@ struct TerenuriBusinessView: View {
             }
         }
         .navigationTitle("Terenurile mele")
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button("Adaugă teren", systemImage: "plus") { adaugaTeren = true }
+            }
+        }
         .refreshable { await incarca() }
         .task { await incarca() }
+        .sheet(isPresented: $adaugaTeren) {
+            NavigationStack {
+                FormularTerenView { Task { await incarca() } }
+            }
+        }
+        .sheet(item: $deEditat) { teren in
+            NavigationStack {
+                FormularTerenView(teren: teren) { Task { await incarca() } }
+            }
+        }
         .sheet(item: $deBlocatPeTeren) { teren in
             NavigationStack {
                 BlocheazaOreView(teren: teren) { Task { await incarca() } }

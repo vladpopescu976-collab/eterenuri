@@ -148,6 +148,57 @@ actor ApiClient {
         }
     }
 
+    /// Trimite poze ca multipart/form-data, exact ce așteaptă /mobil/upload.
+    /// URLSession nu construiește singur un astfel de corp, așa că îl scriem
+    /// noi: fiecare poză între delimitatori, cu numele și tipul ei.
+    func incarcaPoze(_ poze: [(nume: String, tip: String, date: Data)]) async throws -> [String] {
+        struct Raspuns: Decodable { let poze: [String] }
+
+        let delimitator = "Limita-\(UUID().uuidString)"
+        var corp = Data()
+
+        func adauga(_ text: String) {
+            corp.append(Data(text.utf8))
+        }
+
+        for poza in poze {
+            adauga("--\(delimitator)\r\n")
+            adauga("Content-Disposition: form-data; name=\"files\"; filename=\"\(poza.nume)\"\r\n")
+            adauga("Content-Type: \(poza.tip)\r\n\r\n")
+            corp.append(poza.date)
+            adauga("\r\n")
+        }
+        adauga("--\(delimitator)--\r\n")
+
+        var cerere = URLRequest(url: baza.appendingPathComponent("upload"))
+        cerere.httpMethod = "POST"
+        cerere.setValue("multipart/form-data; boundary=\(delimitator)", forHTTPHeaderField: "Content-Type")
+        if let token {
+            cerere.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        cerere.httpBody = corp
+
+        let (date, raspuns): (Data, URLResponse)
+        do {
+            (date, raspuns) = try await sesiuneRetea.data(for: cerere)
+        } catch {
+            throw EroareApi(mesaj: Self.explica(error, url: cerere.url))
+        }
+
+        let cod = (raspuns as? HTTPURLResponse)?.statusCode ?? 0
+        guard (200..<300).contains(cod) else {
+            let mesaj = (try? Self.decoder.decode(AnvelopaEroare.self, from: date))?.error
+            throw EroareApi(mesaj: mesaj ?? "Încărcarea a eșuat (cod \(cod)).")
+        }
+
+        guard let anvelopa = try? Self.decoder.decode(Anvelopa<Raspuns>.self, from: date),
+              let continut = anvelopa.data
+        else {
+            throw EroareApi(mesaj: "Serverul nu a returnat pozele încărcate.")
+        }
+        return continut.poze
+    }
+
     /// Pentru rutele care nu întorc nimic util.
     func cereFaraRaspuns(
         _ cale: String,

@@ -186,48 +186,59 @@ struct CalendarView: View {
     }
 
     /// Fiecare rezervare sau blocare, ca un singur dreptunghi înalt cât durata ei.
+    ///
+    /// ZStack-ul explicit e obligatoriu: un `ForEach` pus direct într-un
+    /// `overlay` formează un grup care își centrează copiii pe verticală, iar
+    /// `alignment: .top` se aplică grupului, nu fiecărui bloc. Într-o zi cu
+    /// două rezervări de lungimi diferite, cea mai scurtă era coborâtă cu
+    /// jumătate din diferența de înălțime și apărea peste alte ore.
     private func blocuri(_ zi: Date) -> some View {
-        ForEach(evenimente(zi)) { eveniment in
-            let sus = CGFloat(eveniment.oraStart - (ore.first ?? 0)) * inaltimeOra
-            let inaltime = max(CGFloat(eveniment.durataOre) * inaltimeOra - 4, 22)
+        ZStack(alignment: .top) {
+            ForEach(evenimente(zi)) { eveniment in
+                let sus = CGFloat(eveniment.oraStart - (ore.first ?? 0)) * inaltimeOra
+                let inaltime = max(CGFloat(eveniment.durataOre) * inaltimeOra - 4, 22)
 
-            Button {
-                evenimentAles = eveniment
-            } label: {
-                VStack(alignment: .leading, spacing: 1) {
-                    Image(systemName: eveniment.simbol)
-                        .font(.system(size: 9, weight: .bold))
-                    if inaltime > 40 {
-                        Text(eveniment.titlu)
-                            .font(.system(size: 9, weight: .semibold))
-                            .lineLimit(inaltime > 90 ? 3 : 2)
-                            .multilineTextAlignment(.leading)
-                            .minimumScaleFactor(0.85)
+                Button {
+                    evenimentAles = eveniment
+                } label: {
+                    VStack(alignment: .leading, spacing: 1) {
+                        Image(systemName: eveniment.simbol)
+                            .font(.system(size: 9, weight: .bold))
+                        if inaltime > 40 {
+                            Text(eveniment.titlu)
+                                .font(.system(size: 9, weight: .semibold))
+                                .lineLimit(inaltime > 90 ? 3 : 2)
+                                .multilineTextAlignment(.leading)
+                                .minimumScaleFactor(0.85)
+                        }
+                        if inaltime > 76 {
+                            Spacer(minLength: 0)
+                            Text(eveniment.intervalScurt)
+                                .font(.system(size: 8, weight: .medium).monospacedDigit())
+                                .opacity(0.9)
+                        }
                     }
-                    if inaltime > 76 {
-                        Spacer(minLength: 0)
-                        Text(eveniment.intervalScurt)
-                            .font(.system(size: 8, weight: .medium).monospacedDigit())
-                            .opacity(0.9)
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 4)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .frame(height: inaltime, alignment: .top)
+                    .background(eveniment.culoare, in: .rect(cornerRadius: 8, style: .continuous))
+                    .foregroundStyle(.white)
+                    .overlay(alignment: .leading) {
+                        // Muchia mai închisă face blocul să se citească ca un tot.
+                        Rectangle().fill(.white.opacity(0.35)).frame(width: 2)
+                            .clipShape(.rect(cornerRadius: 1))
+                            .padding(.vertical, 4)
+                            .padding(.leading, 1)
                     }
                 }
-                .padding(.horizontal, 4)
-                .padding(.vertical, 4)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .frame(height: inaltime, alignment: .top)
-                .background(eveniment.culoare, in: .rect(cornerRadius: 8, style: .continuous))
-                .foregroundStyle(.white)
-                .overlay(alignment: .leading) {
-                    // Muchia mai închisă face blocul să se citească ca un tot.
-                    Rectangle().fill(.white.opacity(0.35)).frame(width: 2)
-                        .clipShape(.rect(cornerRadius: 1))
-                        .padding(.vertical, 4)
-                        .padding(.leading, 1)
-                }
+                .buttonStyle(.plain)
+                .offset(y: sus)
             }
-            .buttonStyle(.plain)
-            .offset(y: sus)
         }
+        // Grupul trebuie să ocupe toată înălțimea coloanei, altfel se
+        // dimensionează după blocuri și se recentrează.
+        .frame(height: CGFloat(ore.count) * inaltimeOra, alignment: .top)
     }
 
     /// Linia roșie cu ora curentă, ca în calendarele obișnuite.
