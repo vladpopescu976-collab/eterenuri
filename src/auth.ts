@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 
 import { prisma } from "@/lib/prisma";
 import { loginSchema } from "@/lib/validations/auth";
+import { inregistreazaEsec, ipDinCerere, stergeEsecurile, verificaLimitarea } from "@/lib/limitare";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   trustHost: true,
@@ -21,17 +22,28 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         // datele unui cont Business te-ar duce in panoul Business.
         expectedRole: { label: "Tip cont", type: "text" },
       },
-      authorize: async (credentials) => {
+      authorize: async (credentials, request) => {
         const parsed = loginSchema.safeParse(credentials);
         if (!parsed.success) return null;
+
+        // Fără limitare, cineva poate încerca parole la nesfârșit.
+        const ip = ipDinCerere(request);
+        const limitare = await verificaLimitarea(parsed.data.email, ip);
+        if (!limitare.permis) return null;
 
         const user = await prisma.user.findUnique({
           where: { email: parsed.data.email },
         });
-        if (!user) return null;
+        if (!user) {
+          await inregistreazaEsec(parsed.data.email, ip);
+          return null;
+        }
 
         const passwordValid = await bcrypt.compare(parsed.data.password, user.password);
-        if (!passwordValid) return null;
+        if (!passwordValid) {
+          await inregistreazaEsec(parsed.data.email, ip);
+          return null;
+        }
 
         const expectedRole = credentials?.expectedRole;
         if (
@@ -40,6 +52,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         ) {
           return null;
         }
+
+        await stergeEsecurile(parsed.data.email, ip);
 
         return {
           id: user.id,

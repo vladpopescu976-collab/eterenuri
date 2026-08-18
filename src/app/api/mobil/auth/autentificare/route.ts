@@ -4,6 +4,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { creeazaToken } from "@/lib/api/token";
 import { eroare, eroareNeasteptata, raspuns } from "@/lib/api/raspuns";
+import { inregistreazaEsec, ipDinCerere, stergeEsecurile, verificaLimitarea } from "@/lib/limitare";
 
 export const maxDuration = 60;
 
@@ -17,11 +18,16 @@ const schema = z.object({
 export async function POST(request: Request) {
   try {
     const date = schema.parse(await request.json());
+    const ip = ipDinCerere(request);
+
+    const limitare = await verificaLimitarea(date.email, ip);
+    if (!limitare.permis) return eroare(limitare.mesaj, 429);
 
     const user = await prisma.user.findUnique({ where: { email: date.email } });
     // Același mesaj pentru email inexistent și parolă greșită, ca să nu se poată
     // afla care adrese au cont.
     if (!user || !(await bcrypt.compare(date.password, user.password))) {
+      await inregistreazaEsec(date.email, ip);
       return eroare("Email sau parolă incorectă.", 401);
     }
     if (date.role && user.role !== date.role) {
@@ -33,6 +39,7 @@ export async function POST(request: Request) {
       );
     }
 
+    await stergeEsecurile(date.email, ip);
     const token = await creeazaToken({ userId: user.id, role: user.role });
 
     return raspuns({

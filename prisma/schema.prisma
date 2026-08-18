@@ -90,6 +90,23 @@ model Session {
   @@map("sessions")
 }
 
+// Câte încercări de autentificare eșuate au venit dintr-o direcție anume.
+// Ținem în baza de date, nu în memorie: pe Vercel fiecare instanță are propria
+// memorie, deci o limitare locală s-ar ocoli trecând de la o instanță la alta.
+model LoginAttempt {
+  id String @id @default(cuid())
+
+  /// email-ul încercat plus adresa IP, ca o limitare să nu blocheze un cont
+  /// doar pentru că altcineva îi ghicește parola.
+  cheie String @unique
+
+  incercari    Int      @default(0)
+  primaEroare  DateTime @default(now())
+  ultimaEroare DateTime @default(now())
+
+  @@map("login_attempts")
+}
+
 model VerificationToken {
   identifier String
   token      String   @unique

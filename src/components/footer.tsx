@@ -13,17 +13,16 @@ const columns = [
   {
     title: "Companie",
     links: [
-      { href: "#", label: "Despre noi" },
-      { href: "#", label: "Contact" },
-      { href: "#", label: "Cariere" },
-    ],
+      { href: "/pagini/despre-noi", label: "Despre noi" },
+      { href: "/pagini/contact", label: "Contact" },
+          ],
   },
   {
     title: "Legal",
     links: [
-      { href: "#", label: "Termeni și condiții" },
-      { href: "#", label: "Politica de confidențialitate" },
-      { href: "#", label: "Politica cookie-uri" },
+      { href: "/pagini/termeni-si-conditii", label: "Termeni și condiții" },
+      { href: "/pagini/politica-de-confidentialitate", label: "Politica de confidențialitate" },
+      { href: "/pagini/politica-cookie-uri", label: "Politica cookie-uri" },
     ],
   },
 ];
