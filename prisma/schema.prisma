@@ -41,8 +41,15 @@ model User {
   password      String
   role          Role      @default(PERSONAL)
   phone         String?
+  // Momentul confirmarii adresei. Cat timp e null, contul exista dar nu se
+  // poate autentifica: altfel oricine ar putea crea conturi cu emailul altuia.
   emailVerified DateTime?
   image         String?
+
+  // Completate la inregistrare, ca sa putem propune terenuri potrivite
+  // fara sa mai intrebam o data.
+  city   String?
+  sports SportType[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -55,6 +62,8 @@ model User {
 
   favorites Favorite[] @relation("UserFavorites")
   reviews   Review[]   @relation("UserReviews")
+
+  tokenuriEmail EmailVerificationToken[]
 
   @@map("users")
 }
@@ -105,6 +114,24 @@ model LoginAttempt {
   ultimaEroare DateTime @default(now())
 
   @@map("login_attempts")
+}
+
+// Linkul de confirmare trimis pe email dupa inregistrare.
+model EmailVerificationToken {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Amprenta SHA-256 a tokenului, nu tokenul. Cine ajunge la baza de date nu
+  /// poate confirma conturi in locul altora.
+  tokenHash String @unique
+
+  expires   DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("email_verification_tokens")
 }
 
 model VerificationToken {

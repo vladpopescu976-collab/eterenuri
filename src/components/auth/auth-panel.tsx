@@ -15,7 +15,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { LoginForm } from "@/components/auth/login-form";
-import { RegisterForm } from "@/components/auth/register-form";
+import { RegisterWizard } from "@/components/auth/register-wizard";
 import type { Role } from "@prisma/client";
 
 const copy: Record<Role, { title: string; description: string }> = {
@@ -33,10 +33,12 @@ export function AuthPanel({
   role,
   initialMode,
   error,
+  code,
 }: {
   role: Role;
   initialMode: "login" | "register";
   error?: string;
+  code?: string;
 }) {
   // Trezim baza de date cat utilizatorul isi scrie datele. Fara asta, prima
   // autentificare dupa o pauza astepta ~30-55s pentru pornirea bazei si
@@ -46,7 +48,7 @@ export function AuthPanel({
   }, []);
 
   return (
-    <div className="w-full max-w-md space-y-4">
+    <div className="w-full max-w-lg space-y-4">
       <Button
         variant="ghost"
         size="sm"
@@ -70,10 +72,10 @@ export function AuthPanel({
               <TabsTrigger value="register">Înregistrare</TabsTrigger>
             </TabsList>
             <TabsContent value="login" className="pt-4">
-              <LoginForm role={role} error={error} />
+              <LoginForm role={role} error={error} code={code} />
             </TabsContent>
             <TabsContent value="register" className="pt-4">
-              <RegisterForm role={role} />
+              <RegisterWizard role={role} />
             </TabsContent>
           </Tabs>
         </CardContent>

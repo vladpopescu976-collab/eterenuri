@@ -32,6 +32,9 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+# Sablonul cu numele variabilelor (fara valori) trebuie sa ajunga in repo,
+# altfel nimeni nu stie ce sa configureze la deploy.
+!.env.example
 
 # vercel
 .vercel

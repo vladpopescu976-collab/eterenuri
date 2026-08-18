@@ -127,10 +127,103 @@ private struct FormularAutentificare: View {
     @State private var eroare: String?
     @State private var seTrimite = false
     @State private var arataSetariServer = false
+    /// Adresa la care tocmai am trimis linkul de confirmare. Cât timp e
+    /// completată, formularul e înlocuit de ecranul de așteptare.
+    @State private var asteaptaConfirmare: String?
+    @State private var emailulAPlecat = true
+    @State private var linkRetrimis = false
 
     private var titlu: String { rol == .business ? "Cont Business" : "Cont Personal" }
 
     var body: some View {
+        continut
+            .navigationTitle(titlu)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Înapoi", systemImage: "chevron.left", action: inapoi)
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Server", systemImage: "server.rack") { arataSetariServer = true }
+                }
+            }
+            .sheet(isPresented: $arataSetariServer) {
+                NavigationStack { SetariServerView() }
+            }
+    }
+
+    @ViewBuilder
+    private var continut: some View {
+        if let adresa = asteaptaConfirmare {
+            asteptareConfirmare(adresa)
+        } else {
+            formular
+        }
+    }
+
+    /// După înregistrare contul există, dar nu se poate folosi până nu e
+    /// confirmată adresa — deci nu are rost să rămână formularul pe ecran.
+    private func asteptareConfirmare(_ adresa: String) -> some View {
+        VStack(spacing: 18) {
+            Spacer()
+
+            Image(systemName: "envelope.badge")
+                .font(.system(size: 46))
+                .foregroundStyle(Tema.accent)
+
+            VStack(spacing: 8) {
+                Text("Verifică-ți emailul")
+                    .font(.title2.bold())
+                Text("Am trimis un link de confirmare la \(adresa). Apasă-l ca să îți activezi contul, apoi autentifică-te.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+
+            if !emailulAPlecat {
+                Text("Contul a fost creat, dar emailul nu a putut fi trimis. Încearcă să ceri linkul din nou.")
+                    .font(.footnote)
+                    .foregroundStyle(.orange)
+                    .multilineTextAlignment(.center)
+            }
+
+            if let eroare {
+                Text(eroare)
+                    .font(.footnote)
+                    .foregroundStyle(.red)
+                    .multilineTextAlignment(.center)
+            }
+
+            VStack(spacing: 10) {
+                Button {
+                    Task { await retrimite(adresa) }
+                } label: {
+                    HStack {
+                        if seTrimite { ProgressView() }
+                        Text(linkRetrimis ? "Link trimis" : "Trimite din nou linkul")
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(Tema.accent.opacity(0.12), in: .rect(cornerRadius: 12))
+                    .foregroundStyle(Tema.accent)
+                }
+                .disabled(seTrimite || linkRetrimis)
+
+                Button("Mergi la autentificare") {
+                    asteaptaConfirmare = nil
+                    modInregistrare = false
+                    parola = ""
+                    eroare = nil
+                }
+                .font(.subheadline.weight(.medium))
+            }
+
+            Spacer()
+        }
+        .padding(24)
+    }
+
+    private var formular: some View {
         Form {
             Section {
                 Picker("Mod", selection: $modInregistrare) {
@@ -164,7 +257,7 @@ private struct FormularAutentificare: View {
                 }
             } footer: {
                 if modInregistrare {
-                    Text("Parola trebuie să aibă cel puțin 8 caractere.")
+                    Text("Parola trebuie să aibă cel puțin 8 caractere, dintre care o literă și o cifră.")
                 }
             }
 
@@ -202,18 +295,18 @@ private struct FormularAutentificare: View {
                 }
             }
         }
-        .navigationTitle(titlu)
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                Button("Înapoi", systemImage: "chevron.left", action: inapoi)
-            }
-            ToolbarItem(placement: .topBarTrailing) {
-                Button("Server", systemImage: "server.rack") { arataSetariServer = true }
-            }
-        }
-        .sheet(isPresented: $arataSetariServer) {
-            NavigationStack { SetariServerView() }
+    }
+
+    private func retrimite(_ adresa: String) async {
+        eroare = nil
+        seTrimite = true
+        defer { seTrimite = false }
+        do {
+            try await sesiune.retrimiteConfirmarea(email: adresa)
+            linkRetrimis = true
+            emailulAPlecat = true
+        } catch {
+            eroare = error.localizedDescription
         }
     }
 
@@ -224,13 +317,16 @@ private struct FormularAutentificare: View {
             defer { seTrimite = false }
             do {
                 if modInregistrare {
-                    try await sesiune.inregistreaza(
+                    let adresa = email.trimmingCharacters(in: .whitespaces)
+                    emailulAPlecat = try await sesiune.inregistreaza(
                         nume: nume.trimmingCharacters(in: .whitespaces),
-                        email: email.trimmingCharacters(in: .whitespaces),
+                        email: adresa,
                         parola: parola,
                         telefon: telefon.trimmingCharacters(in: .whitespaces),
                         rol: rol
                     )
+                    linkRetrimis = false
+                    asteaptaConfirmare = adresa
                 } else {
                     try await sesiune.autentifica(
                         email: email.trimmingCharacters(in: .whitespaces),

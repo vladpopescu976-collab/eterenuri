@@ -30,6 +30,12 @@ export async function POST(request: Request) {
       await inregistreazaEsec(date.email, ip);
       return eroare("Email sau parolă incorectă.", 401);
     }
+    if (!user.emailVerified) {
+      return eroare(
+        "Contul nu este confirmat. Deschide emailul primit la înregistrare și apasă linkul de confirmare.",
+        403
+      );
+    }
     if (date.role && user.role !== date.role) {
       return eroare(
         date.role === "PERSONAL"

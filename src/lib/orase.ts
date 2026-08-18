@@ -6,7 +6,11 @@
  * e potrivită cu ea ignorând diacriticele și majusculele, apoi se afișează
  * varianta corectă.
  */
-export const ORASE_ROMANIA: readonly string[] = [
+// Lista e grupată pe județe, iar câteva nume se repetă de la un județ la altul
+// („Ștefănești” e și în Argeș, și în Botoșani). Consumatorii o folosesc ca pe o
+// listă simplă de nume, unde un nume repetat înseamnă două rânduri identice —
+// și chei duplicate în React.
+const ORASE_PE_JUDETE: readonly string[] = [
   // Alba
   "Alba Iulia", "Aiud", "Blaj", "Sebeș", "Cugir", "Ocna Mureș", "Zlatna", "Câmpeni", "Abrud", "Baia de Arieș", "Teiuș",
   // Arad
@@ -92,6 +96,8 @@ export const ORASE_ROMANIA: readonly string[] = [
   // Vrancea
   "Focșani", "Adjud", "Mărășești", "Odobești", "Panciu",
 ];
+
+export const ORASE_ROMANIA: readonly string[] = [...new Set(ORASE_PE_JUDETE)];
 
 /** Textul fără diacritice, cu litere mici — cheia după care potrivim scrierile. */
 export function cheieOras(text: string): string {

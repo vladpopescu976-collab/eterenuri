@@ -17,10 +17,31 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { RetrimiteConfirmarea } from "@/components/auth/retrimite-confirmarea";
 import { loginSchema, type LoginInput } from "@/lib/validations/auth";
 import type { Role } from "@prisma/client";
 
-export function LoginForm({ role, error }: { role: Role; error?: string }) {
+/**
+ * NextAuth ne aduce inapoi pe /autentificare fara ?tip=, iar pagina nu ar mai
+ * sti ce panou sa arate. Lasam ultimul tip ales intr-un cookie, citit pe
+ * server doar cand exista o eroare.
+ */
+function tineMinteTipul(role: Role) {
+  const valoare = role === "BUSINESS" ? "business" : "personal";
+  document.cookie = `eterenuri_tip=${valoare}; path=/; max-age=900; samesite=lax`;
+}
+
+export function LoginForm({
+  role,
+  error,
+  code,
+}: {
+  role: Role;
+  error?: string;
+  code?: string;
+}) {
+  // Codul vine din `authorize`, prin adresa de redirectare a NextAuth.
+  const emailNeconfirmat = code === "email_neconfirmat";
   const [isLoading, setIsLoading] = useState(false);
   const [durataMare, setDurataMare] = useState(false);
 
@@ -46,6 +67,8 @@ export function LoginForm({ role, error }: { role: Role; error?: string }) {
       // sesiune putea sa nu fie inca disponibil cand pagina urmatoare il
       // citea, iar pe conexiuni lente (telefon) autentificarea parea ca nu
       // face nimic. La eroare, NextAuth ne trimite inapoi cu ?error=.
+      tineMinteTipul(role);
+
       await signIn("credentials", {
         email: values.email,
         password: values.password,
@@ -74,15 +97,30 @@ export function LoginForm({ role, error }: { role: Role; error?: string }) {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        {error && (
-          <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2.5 text-[13px] text-destructive">
-            <p className="font-medium">Email sau parolă incorectă.</p>
-            <p className="mt-0.5 text-destructive/80">
-              {role === "PERSONAL"
-                ? "Dacă ai un cont Business, revino și alege „Cont Business”."
-                : "Dacă ai un cont Personal, revino și alege „Cont Personal”."}
-            </p>
+        {emailNeconfirmat ? (
+          <div className="space-y-3 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-3">
+            <div className="text-[13px]">
+              <p className="font-medium text-amber-700 dark:text-amber-500">
+                Contul nu este confirmat.
+              </p>
+              <p className="mt-0.5 text-muted-foreground">
+                Deschide emailul primit la înregistrare și apasă linkul de confirmare. Dacă
+                nu îl mai găsești, îți trimitem altul.
+              </p>
+            </div>
+            <RetrimiteConfirmarea />
           </div>
+        ) : (
+          error && (
+            <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2.5 text-[13px] text-destructive">
+              <p className="font-medium">Email sau parolă incorectă.</p>
+              <p className="mt-0.5 text-destructive/80">
+                {role === "PERSONAL"
+                  ? "Dacă ai un cont Business, revino și alege „Cont Business”."
+                  : "Dacă ai un cont Personal, revino și alege „Cont Personal”."}
+              </p>
+            </div>
+          )
         )}
 
         <FormField

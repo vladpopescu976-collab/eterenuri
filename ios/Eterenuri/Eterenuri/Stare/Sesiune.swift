@@ -50,13 +50,16 @@ final class Sesiune {
         await aplica(raspuns)
     }
 
+    /// Contul se creează, dar nu primește token: întâi trebuie confirmată
+    /// adresa de email. Întoarce `true` dacă mesajul chiar a plecat.
+    @discardableResult
     func inregistreaza(
         nume: String,
         email: String,
         parola: String,
         telefon: String,
         rol: Rol
-    ) async throws {
+    ) async throws -> Bool {
         struct Corp: Encodable {
             let name: String
             let email: String
@@ -64,7 +67,11 @@ final class Sesiune {
             let phone: String?
             let role: String
         }
-        let raspuns: RaspunsAutentificare = try await ApiClient.shared.cere(
+        struct Raspuns: Decodable {
+            let email: String
+            let emailTrimis: Bool
+        }
+        let raspuns: Raspuns = try await ApiClient.shared.cere(
             "auth/inregistrare",
             metoda: "POST",
             corp: Corp(
@@ -75,7 +82,16 @@ final class Sesiune {
                 role: rol.rawValue
             )
         )
-        await aplica(raspuns)
+        return raspuns.emailTrimis
+    }
+
+    /// Cere un link nou de confirmare pentru o adresă.
+    func retrimiteConfirmarea(email: String) async throws {
+        struct Corp: Encodable { let email: String }
+        struct Raspuns: Decodable { let trimis: Bool }
+        let _: Raspuns = try await ApiClient.shared.cere(
+            "auth/retrimite", metoda: "POST", corp: Corp(email: email), ca: Raspuns.self
+        )
     }
 
     private func aplica(_ raspuns: RaspunsAutentificare) async {
