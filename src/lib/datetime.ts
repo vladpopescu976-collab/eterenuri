@@ -108,3 +108,43 @@ export function clockInAppZone(instant: Date): { hour: number; minute: number } 
   const get = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? "0");
   return { hour: get("hour") % 24, minute: get("minute") };
 }
+
+/**
+ * Momentul exact al unei ore dintr-o zi calendaristică din România.
+ *
+ * Nu e totuna cu „miezul nopții plus N ore”: în zilele în care se schimbă ora,
+ * un teren blocat luni de la 20:00 ar aluneca la 19:00 sau 21:00. Ora 24 se
+ * citește ca miezul nopții următoare, ca terenurile deschise până la 24 să
+ * poată fi blocate până la închidere.
+ */
+export function instantInAppZone(date: string, hour: number, minute = 0): Date | null {
+  const m = DATE_RE.exec(date.trim());
+  if (!m || hour < 0 || hour > 24 || minute < 0 || minute > 59) return null;
+
+  const ziua = hour === 24 ? adaugaZile(date, 1) : date;
+  const ora = hour === 24 ? 0 : hour;
+
+  const naiv = Date.parse(
+    `${ziua}T${String(ora).padStart(2, "0")}:${String(minute).padStart(2, "0")}:00Z`
+  );
+  if (Number.isNaN(naiv)) return null;
+
+  // Două treceri, la fel ca la `dayRangeInAppZone`, ca să fie corect și în
+  // ziua în care se schimbă ora.
+  let ms = naiv - zoneOffsetMs(new Date(naiv), APP_TIME_ZONE);
+  ms = naiv - zoneOffsetMs(new Date(ms), APP_TIME_ZONE);
+  return new Date(ms);
+}
+
+/** „2026-08-19” + 7 → „2026-08-26”. Lucrăm pe UTC, deci fusul nu poate muta ziua. */
+export function adaugaZile(date: string, zile: number): string {
+  const baza = Date.parse(`${date}T00:00:00Z`);
+  if (Number.isNaN(baza)) return date;
+  return new Date(baza + zile * 86_400_000).toISOString().slice(0, 10);
+}
+
+/** Ziua săptămânii după ISO: 1 = luni … 7 = duminică. */
+export function ziuaSaptamanii(date: string): number {
+  const zi = new Date(`${date}T00:00:00Z`).getUTCDay();
+  return zi === 0 ? 7 : zi;
+}

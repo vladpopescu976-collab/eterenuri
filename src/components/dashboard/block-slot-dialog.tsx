@@ -8,9 +8,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { blockSlot } from "@/lib/actions/blocked-slots";
-import { localDateTimeToIso, toDateInput } from "@/lib/datetime";
+import { blockSlot, blockSlotSeries } from "@/lib/actions/blocked-slots";
+import { localDateTimeToIso, toDateInput, ziuaSaptamanii } from "@/lib/datetime";
 import { hourLabels, hourOf } from "@/lib/availability";
+import { cn } from "@/lib/utils";
 
 const REASON_SUGGESTIONS = [
   "Mentenanță",
@@ -18,6 +19,19 @@ const REASON_SUGGESTIONS = [
   "Eveniment privat",
   "Antrenament propriu",
 ];
+
+// ISO: 1 = luni … 7 = duminică, ca în restul aplicației.
+const ZILE = [
+  { valoare: 1, scurt: "L", lung: "luni" },
+  { valoare: 2, scurt: "Ma", lung: "marți" },
+  { valoare: 3, scurt: "Mi", lung: "miercuri" },
+  { valoare: 4, scurt: "J", lung: "joi" },
+  { valoare: 5, scurt: "V", lung: "vineri" },
+  { valoare: 6, scurt: "S", lung: "sâmbătă" },
+  { valoare: 7, scurt: "D", lung: "duminică" },
+];
+
+const SAPTAMANI = [4, 8, 12, 26, 52];
 
 export function BlockSlotDialog({
   fields,
@@ -40,14 +54,36 @@ export function BlockSlotDialog({
   const [error, setError] = useState("");
   const [isPending, startTransition] = useTransition();
 
+  // Repetarea e oprită implicit: cele mai multe blocări sunt pentru o singură zi.
+  const [seRepeta, setSeRepeta] = useState(false);
+  const [zile, setZile] = useState<number[]>([]);
+  const [saptamani, setSaptamani] = useState(8);
+
   const field = fields.find((f) => f.id === fieldId) ?? fields[0];
+  // Data aleasă e mereu în serie, deci ziua ei pornește bifată.
+  const zileAlese = zile.length > 0 ? zile : [ziuaSaptamanii(date)];
   const startOptions = field ? hourLabels(field.openingHour, field.closingHour) : [];
   const endOptions = field && start ? hourLabels(hourOf(start) + 1, field.closingHour + 1) : [];
+
+  function comutaZi(valoare: number) {
+    setZile((curente) => {
+      const baza = curente.length > 0 ? curente : [ziuaSaptamanii(date)];
+      const urmatoare = baza.includes(valoare)
+        ? baza.filter((zi) => zi !== valoare)
+        : [...baza, valoare];
+      return urmatoare;
+    });
+  }
 
   function submit() {
     setError("");
     if (!fieldId || !date || !start || !end) {
       setError("Alege terenul, data și intervalul orar.");
+      return;
+    }
+
+    if (seRepeta) {
+      trimiteSeria();
       return;
     }
 
@@ -79,6 +115,65 @@ export function BlockSlotDialog({
       setReason("");
       setClientName("");
       setClientPhone("");
+      onOpenChange(false);
+    });
+  }
+
+  function trimiteSeria() {
+    if (zileAlese.length === 0) {
+      setError("Alege cel puțin o zi a săptămânii.");
+      return;
+    }
+
+    startTransition(async () => {
+      const result = await blockSlotSeries({
+        fieldId,
+        zile: zileAlese,
+        oraStart: hourOf(start),
+        oraSfarsit: hourOf(end),
+        dataInceput: date,
+        saptamani,
+        reason: reason.trim() || undefined,
+        clientName: clientName.trim() || undefined,
+        clientPhone: clientPhone.trim() || undefined,
+      });
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+
+      const { create, rezervate, blocate } = result.data;
+      if (create === 0) {
+        setError(
+          rezervate > 0
+            ? "Toate orele din serie sunt deja rezervate sau blocate."
+            : "Orele erau deja blocate — nu s-a adăugat nimic."
+        );
+        return;
+      }
+
+      // Spunem și ce n-a intrat: altfel proprietarul crede că are terenul
+      // blocat în zile în care de fapt are un client.
+      const detalii: string[] = [];
+      if (rezervate > 0) {
+        detalii.push(`${rezervate} ${rezervate === 1 ? "oră are" : "ore au"} deja rezervare`);
+      }
+      if (blocate > 0) {
+        detalii.push(`${blocate} ${blocate === 1 ? "era blocată" : "erau blocate"}`);
+      }
+
+      toast.success(
+        `${create} ${create === 1 ? "interval blocat" : "intervale blocate"}.`,
+        detalii.length > 0 ? { description: `Sărite: ${detalii.join(", ")}.` } : undefined
+      );
+
+      setStart("");
+      setEnd("");
+      setReason("");
+      setClientName("");
+      setClientPhone("");
+      setZile([]);
+      setSeRepeta(false);
       onOpenChange(false);
     });
   }
@@ -173,6 +268,75 @@ export function BlockSlotDialog({
             </div>
           </div>
 
+          <div className={cn("rounded-lg border p-3", seRepeta && "border-primary/40 bg-primary/5")}>
+            <label className="flex cursor-pointer items-start gap-2.5">
+              <input
+                type="checkbox"
+                checked={seRepeta}
+                onChange={(e) => setSeRepeta(e.target.checked)}
+                className="mt-0.5 h-4 w-4 shrink-0 accent-primary"
+              />
+              <span>
+                <span className="block text-sm font-medium">Se repetă săptămânal</span>
+                <span className="block text-[11.5px] text-muted-foreground">
+                  Aceeași oră, în fiecare săptămână. Pentru un client care vine mereu în aceeași zi.
+                </span>
+              </span>
+            </label>
+
+            {seRepeta && (
+              <div className="mt-3 space-y-3">
+                <div>
+                  <Label>În ce zile</Label>
+                  <div className="mt-1.5 flex flex-wrap gap-1.5">
+                    {ZILE.map((zi) => (
+                      <button
+                        key={zi.valoare}
+                        type="button"
+                        aria-pressed={zileAlese.includes(zi.valoare)}
+                        aria-label={zi.lung}
+                        onClick={() => comutaZi(zi.valoare)}
+                        className={cn(
+                          "h-9 min-w-9 rounded-lg border px-2 text-[12.5px] font-medium transition-colors",
+                          zileAlese.includes(zi.valoare)
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "border-border text-muted-foreground hover:bg-muted"
+                        )}
+                      >
+                        {zi.scurt}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <Label>Câte săptămâni</Label>
+                  <div className="mt-1.5 flex flex-wrap gap-1.5">
+                    {SAPTAMANI.map((numar) => (
+                      <button
+                        key={numar}
+                        type="button"
+                        aria-pressed={saptamani === numar}
+                        onClick={() => setSaptamani(numar)}
+                        className={cn(
+                          "rounded-full border px-3 py-1 text-[12.5px] font-medium transition-colors",
+                          saptamani === numar
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "border-border text-muted-foreground hover:bg-muted"
+                        )}
+                      >
+                        {numar}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="mt-1.5 text-[11.5px] text-muted-foreground">
+                    Începând cu data aleasă mai sus. Orele deja rezervate sau blocate sunt sărite.
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+
           <div className="rounded-lg border p-3">
             <Label htmlFor="block-client">Client (opțional)</Label>
             <p className="mt-0.5 text-[11.5px] text-muted-foreground">
@@ -233,7 +397,11 @@ export function BlockSlotDialog({
             Anulează
           </Button>
           <Button type="button" className="flex-1" onClick={submit} disabled={isPending}>
-            {isPending ? "Se blochează…" : "Blochează"}
+            {isPending
+              ? "Se blochează…"
+              : seRepeta
+                ? `Blochează ${zileAlese.length * saptamani} intervale`
+                : "Blochează"}
           </Button>
         </div>
       </DialogContent>

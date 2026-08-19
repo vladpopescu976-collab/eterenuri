@@ -24,7 +24,7 @@ export default async function BusinessSchedulePage() {
       where: { field: { ownerId } },
       select: {
         id: true, fieldId: true, startTime: true, endTime: true,
-        reason: true, clientName: true, clientPhone: true,
+        reason: true, clientName: true, clientPhone: true, serieId: true,
       },
     }),
   ]);

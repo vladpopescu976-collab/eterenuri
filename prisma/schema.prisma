@@ -326,8 +326,13 @@ model BlockedSlot {
   clientName  String?
   clientPhone String?
 
+  /// Blocarile facute dintr-o singura regula („in fiecare luni, 20-21”) au
+  /// acelasi id de serie, ca sa poata fi sterse toate odata.
+  serieId String?
+
   createdAt DateTime @default(now())
 
   @@index([fieldId])
+  @@index([serieId])
   @@map("blocked_slots")
 }

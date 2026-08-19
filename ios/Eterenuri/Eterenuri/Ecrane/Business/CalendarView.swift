@@ -488,6 +488,8 @@ struct CalendarView: View {
         let oraStart: Int
         let durataOre: Int
         let fel: Fel
+        /// Prezent când intervalul face parte dintr-o serie săptămânală.
+        var serieId: String?
 
         enum Fel {
             case confirmata, inAsteptare, telefonica, blocare
@@ -593,7 +595,8 @@ struct CalendarView: View {
                     subtitlu: blocare.clientTelefon ?? blocare.motiv,
                     oraStart: start,
                     durataOre: durata,
-                    fel: blocare.clientNume == nil ? .blocare : .telefonica
+                    fel: blocare.clientNume == nil ? .blocare : .telefonica,
+                    serieId: blocare.serieId
                 )
             )
         }
@@ -681,6 +684,7 @@ private struct DetaliuEveniment: View {
 
     @Environment(\.dismiss) private var inchide
     @State private var seSterge = false
+    @State private var stergeSeria = false
     @State private var eroare: String?
 
     private var esteBlocare: Bool {
@@ -706,6 +710,9 @@ private struct DetaliuEveniment: View {
                 }
                 LabeledContent("Ora", value: eveniment.interval)
                 LabeledContent("Durată", value: eveniment.durataText)
+                if eveniment.serieId != nil {
+                    LabeledContent("Se repetă", value: "Săptămânal")
+                }
                 if let subtitlu = eveniment.subtitlu, !subtitlu.isEmpty {
                     LabeledContent("Detalii", value: subtitlu)
                 }
@@ -723,10 +730,23 @@ private struct DetaliuEveniment: View {
                         HStack {
                             Text(eveniment.fel == .telefonica ? "Anulează rezervarea" : "Deblochează ora")
                             Spacer()
-                            if seSterge { ProgressView() }
+                            if seSterge && !stergeSeria { ProgressView() }
                         }
                     }
                     .disabled(seSterge)
+
+                    if let serieId = eveniment.serieId {
+                        Button(role: .destructive) {
+                            stergeToataSeria(serieId)
+                        } label: {
+                            HStack {
+                                Text("Șterge toată seria")
+                                Spacer()
+                                if seSterge && stergeSeria { ProgressView() }
+                            }
+                        }
+                        .disabled(seSterge)
+                    }
                 } else {
                     Text("Rezervările clienților se gestionează din secțiunea Rezervări.")
                         .font(.footnote).foregroundStyle(.secondary)
@@ -737,6 +757,29 @@ private struct DetaliuEveniment: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) { Button("Închide") { inchide() } }
+        }
+    }
+
+    /// Șterge toate aparițiile viitoare, nu doar cea apăsată: o serie de un an
+    /// s-ar dezactiva altfel apăsând de cincizeci de ori.
+    private func stergeToataSeria(_ serieId: String) {
+        struct Corp: Encodable { let serieId: String }
+        struct Raspuns: Decodable { let sterse: Int }
+
+        eroare = nil
+        stergeSeria = true
+        seSterge = true
+        Task {
+            defer { seSterge = false; stergeSeria = false }
+            do {
+                let _: Raspuns = try await ApiClient.shared.cere(
+                    "business/blocari", metoda: "DELETE", corp: Corp(serieId: serieId), ca: Raspuns.self
+                )
+                reincarca()
+                inchide()
+            } catch {
+                eroare = error.localizedDescription
+            }
         }
     }
 

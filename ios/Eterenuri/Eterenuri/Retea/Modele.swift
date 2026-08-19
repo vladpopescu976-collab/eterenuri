@@ -172,6 +172,8 @@ struct Blocare: Codable, Identifiable, Sendable {
     /// Completat când intervalul e o rezervare notată manual, nu o blocare.
     let clientNume: String?
     let clientTelefon: String?
+    /// Prezent când blocarea face parte dintr-o serie săptămânală.
+    var serieId: String?
 }
 
 struct TerenStatistic: Codable, Identifiable, Sendable {

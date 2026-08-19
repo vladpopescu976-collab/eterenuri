@@ -7,6 +7,7 @@ import type { Prisma } from "@prisma/client";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { ActionError, fail, ok, toActionError, type ActionResult } from "@/lib/actions/result";
+import { creeazaSerie, stergeSeria, MAX_SAPTAMANI } from "@/lib/blocari-recurente";
 
 async function requireBusinessSession() {
   const session = await auth();
@@ -137,5 +138,71 @@ export async function unblockSlot(blockedSlotId: string): Promise<ActionResult> 
     return ok();
   } catch (error) {
     return toActionError("unblockSlot", error);
+  }
+}
+
+const serieSchema = z.object({
+  fieldId: z.string().min(1),
+  // ISO: 1 = luni … 7 = duminică.
+  zile: z.array(z.number().int().min(1).max(7)).min(1, "Alege cel puțin o zi a săptămânii."),
+  oraStart: z.number().int().min(0).max(23),
+  oraSfarsit: z.number().int().min(1).max(24),
+  dataInceput: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data de început nu este validă."),
+  saptamani: z.number().int().min(1).max(MAX_SAPTAMANI),
+  reason: z.string().trim().max(200, "Motivul nu poate depăși 200 de caractere.").optional(),
+  clientName: z.string().trim().max(100, "Numele este prea lung.").optional(),
+  clientPhone: z.string().trim().max(30, "Numărul este prea lung.").optional(),
+});
+
+export type RezumatSerie = { create: number; rezervate: number; blocate: number; trecute: number };
+
+/** Blochează aceeași oră în fiecare săptămână, pe zilele alese. */
+export async function blockSlotSeries(
+  input: z.infer<typeof serieSchema>
+): Promise<ActionResult<RezumatSerie>> {
+  try {
+    const session = await requireBusinessSession();
+    const data = serieSchema.parse(input);
+
+    const rezultat = await creeazaSerie(
+      {
+        fieldId: data.fieldId,
+        zile: data.zile,
+        oraStart: data.oraStart,
+        oraSfarsit: data.oraSfarsit,
+        dataInceput: data.dataInceput,
+        saptamani: data.saptamani,
+        motiv: data.reason,
+        clientNume: data.clientName,
+        clientTelefon: data.clientPhone,
+      },
+      session.user.id
+    );
+
+    if ("eroare" in rezultat) return fail(rezultat.eroare);
+
+    revalidateAll(data.fieldId);
+    return ok({
+      create: rezultat.create,
+      rezervate: rezultat.sarite.filter((s) => s.motiv === "rezervat").length,
+      blocate: rezultat.sarite.filter((s) => s.motiv === "blocat").length,
+      trecute: rezultat.sarite.filter((s) => s.motiv === "trecut").length,
+    });
+  } catch (error) {
+    return toActionError("blockSlotSeries", error);
+  }
+}
+
+/** Șterge toate blocările viitoare dintr-o serie. */
+export async function unblockSeries(serieId: string, fieldId: string): Promise<ActionResult<number>> {
+  try {
+    const session = await requireBusinessSession();
+    const rezultat = await stergeSeria(serieId, session.user.id);
+    if ("eroare" in rezultat) return fail(rezultat.eroare);
+
+    revalidateAll(fieldId);
+    return ok(rezultat.sterse);
+  } catch (error) {
+    return toActionError("unblockSeries", error);
   }
 }

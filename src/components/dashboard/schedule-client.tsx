@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronLeft, ChevronRight, ChevronDown, CalendarDays, Clock3, Lock, Phone, Plus, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronDown, CalendarDays, CalendarX, Clock3, Lock, Phone, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { StatusBadge } from "@/components/dashboard/status-badge";
@@ -10,7 +10,7 @@ import { RescheduleDialog } from "@/components/dashboard/reschedule-dialog";
 import { BlockSlotDialog } from "@/components/dashboard/block-slot-dialog";
 import { DayHeatPicker } from "@/components/dashboard/day-heat-picker";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { unblockSlot } from "@/lib/actions/blocked-slots";
+import { unblockSeries, unblockSlot } from "@/lib/actions/blocked-slots";
 import { toDateInput, toTimeInput } from "@/lib/datetime";
 import { sportMeta } from "@/lib/sports";
 import type { BookingStatus, SportType } from "@prisma/client";
@@ -73,6 +73,8 @@ type BlockedSlot = {
   /// Completat când intervalul e o rezervare notată manual, nu o blocare.
   clientName: string | null;
   clientPhone: string | null;
+  /// Prezent când blocarea face parte dintr-o serie săptămânală.
+  serieId: string | null;
 };
 
 type ScheduleField = {
@@ -132,6 +134,20 @@ export function ScheduleClient({
         return;
       }
       toast.success("Intervalul a fost deblocat.");
+    });
+  }
+
+  /// O serie de un an s-ar șterge altfel apăsând de cincizeci de ori.
+  function removeSeries(serieId: string, fieldId: string) {
+    startTransition(async () => {
+      const result = await unblockSeries(serieId, fieldId);
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success(
+        `${result.data} ${result.data === 1 ? "interval deblocat" : "intervale deblocate"} din serie.`
+      );
     });
   }
 
@@ -300,16 +316,30 @@ export function ScheduleClient({
                           <span className="mt-auto truncate font-mono text-[10.5px] leading-tight opacity-80 tabular-nums">
                             {fmtHour(start)}–{fmtHour(end)}
                           </span>
-                          <button
-                            type="button"
-                            disabled={isPending}
-                            aria-label="Deblochează intervalul"
-                            title="Deblochează"
-                            onClick={() => removeBlock(s.id)}
-                            className="absolute right-1 top-1 rounded-md p-1 opacity-0 transition-opacity hover:bg-background hover:text-destructive focus-visible:opacity-100 group-hover:opacity-100 disabled:opacity-40"
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </button>
+                          <span className="absolute right-1 top-1 flex gap-0.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
+                            {s.serieId && (
+                              <button
+                                type="button"
+                                disabled={isPending}
+                                aria-label="Șterge toată seria săptămânală"
+                                title="Șterge toată seria"
+                                onClick={() => removeSeries(s.serieId!, s.fieldId)}
+                                className="rounded-md p-1 hover:bg-background hover:text-destructive disabled:opacity-40"
+                              >
+                                <CalendarX className="h-3 w-3" />
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              disabled={isPending}
+                              aria-label="Deblochează intervalul"
+                              title="Deblochează"
+                              onClick={() => removeBlock(s.id)}
+                              className="rounded-md p-1 hover:bg-background hover:text-destructive disabled:opacity-40"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </button>
+                          </span>
                         </div>
                       );
                     })}
