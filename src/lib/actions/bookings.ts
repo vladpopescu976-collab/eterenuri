@@ -6,6 +6,7 @@ import type { Prisma } from "@prisma/client";
 
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { outsideOpeningHours } from "@/lib/availability";
 import { ActionError, fail, ok, toActionError, type ActionResult } from "@/lib/actions/result";
 
 // Statusurile care chiar ocupă terenul. Aceleași sunt folosite și de
@@ -94,6 +95,11 @@ export async function createBookingRequest(
     if (startTime < new Date()) {
       return fail("Nu poți rezerva un interval din trecut.");
     }
+
+    const inAfaraProgramului = outsideOpeningHours(
+      startTime, endTime, field.openingHour, field.closingHour
+    );
+    if (inAfaraProgramului) return fail(inAfaraProgramului);
 
     const hours = (endTime.getTime() - startTime.getTime()) / 3_600_000;
     const totalPrice = Number(field.pricePerHour) * hours;
@@ -270,13 +276,13 @@ export async function updateBookingTime(
       return fail("Nu poți muta rezervarea într-un interval din trecut.");
     }
 
-    const startHour = startTime.getHours();
-    const endHour = endTime.getHours() === 0 ? 24 : endTime.getHours();
-    if (startHour < field.openingHour || endHour > field.closingHour) {
-      return fail(
-        `Terenul este deschis între ${String(field.openingHour).padStart(2, "0")}:00 și ${String(field.closingHour).padStart(2, "0")}:00.`
-      );
-    }
+    // `getHours()` citește ora în fusul mașinii care rulează codul. Pe Vercel
+    // aceea e UTC, deci o rezervare corectă de la 10:00 ora României ar fi fost
+    // respinsă ca fiind la 07:00, înainte de deschidere.
+    const inAfaraLaMutare = outsideOpeningHours(
+      startTime, endTime, field.openingHour, field.closingHour
+    );
+    if (inAfaraLaMutare) return fail(inAfaraLaMutare);
 
     const hours = (endTime.getTime() - startTime.getTime()) / 3_600_000;
     const totalPrice = Number(field.pricePerHour) * hours;

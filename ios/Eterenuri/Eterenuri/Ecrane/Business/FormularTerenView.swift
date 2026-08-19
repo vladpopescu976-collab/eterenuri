@@ -332,7 +332,8 @@ struct FormularTerenView: View {
             do {
                 if let teren {
                     try await ApiClient.shared.cereFaraRaspuns(
-                        "business/terenuri/\(teren.id)", metoda: "PATCH", corp: corp
+                        // Ruta acceptă PUT, nu PATCH: trimitem terenul întreg.
+                        "business/terenuri/\(teren.id)", metoda: "PUT", corp: corp
                     )
                 } else {
                     try await ApiClient.shared.cereFaraRaspuns(

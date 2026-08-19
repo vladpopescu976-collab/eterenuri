@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { clockInAppZone } from "@/lib/datetime";
 import { cereBusiness, eroareNeasteptata, raspuns } from "@/lib/api/raspuns";
 
 export const maxDuration = 60;
@@ -44,10 +45,14 @@ export async function GET(request: Request) {
     const capacitateSaptamanala = capacitateZilnica * 7;
 
     // Cele mai cerute ore, ca proprietarul să știe când merită să fie deschis.
+    // Ora se citește în fusul terenurilor: pe Vercel serverul merge pe UTC, iar
+    // un vârf real de la 19:00 ar fi apărut la 16:00.
     const peOra = new Map<number, number>();
     confirmate.forEach((b) => {
-      for (let h = b.startTime.getHours(); h < b.endTime.getHours(); h++) {
-        peOra.set(h, (peOra.get(h) ?? 0) + 1);
+      const start = clockInAppZone(b.startTime).hour;
+      const durata = Math.round((b.endTime.getTime() - b.startTime.getTime()) / 3_600_000);
+      for (let h = start; h < start + durata; h++) {
+        peOra.set(h % 24, (peOra.get(h % 24) ?? 0) + 1);
       }
     });
 

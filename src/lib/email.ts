@@ -11,7 +11,9 @@ const resend = cheie ? new Resend(cheie) : null;
 // Pentru utilizatori reali e nevoie de un domeniu verificat în Resend.
 const expeditor = process.env.EMAIL_FROM?.trim() || "Eterenuri <onboarding@resend.dev>";
 
-export type RezultatEmail = { trimis: true } | { trimis: false; motiv: string };
+// Id-ul vine de la Resend și e singurul fir prin care se poate urmări un
+// mesaj mai târziu („chiar a plecat?”), deci îl păstrăm în jurnal.
+export type RezultatEmail = { trimis: true; id?: string } | { trimis: false; motiv: string };
 
 /**
  * Nu aruncă niciodată. Un email care nu pleacă nu trebuie să șteargă contul
@@ -32,7 +34,7 @@ export async function trimiteEmail(mesaj: {
   }
 
   try {
-    const { error } = await resend.emails.send({
+    const { data, error } = await resend.emails.send({
       from: expeditor,
       to: mesaj.catre,
       subject: mesaj.subiect,
@@ -44,7 +46,8 @@ export async function trimiteEmail(mesaj: {
       console.error("[email] Resend a refuzat mesajul", error);
       return { trimis: false, motiv: error.message || "Serverul de email a refuzat mesajul." };
     }
-    return { trimis: true };
+    console.info(`[email] trimis către ${mesaj.catre} (id ${data?.id ?? "necunoscut"})`);
+    return { trimis: true, id: data?.id };
   } catch (eroare) {
     console.error("[email] trimitere eșuată", eroare);
     return { trimis: false, motiv: "Nu am putut contacta serverul de email." };

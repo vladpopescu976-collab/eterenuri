@@ -95,3 +95,16 @@ export function dayRangeInAppZone(date: string): { start: Date; end: Date } | nu
 
   return { start: new Date(startMs), end: new Date(endMs) };
 }
+
+/** Ora și minutul unui moment, citite în fusul terenurilor, nu al serverului. */
+export function clockInAppZone(instant: Date): { hour: number; minute: number } {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: APP_TIME_ZONE,
+    hour12: false,
+    hour: "2-digit",
+    minute: "2-digit",
+  }).formatToParts(instant);
+
+  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? "0");
+  return { hour: get("hour") % 24, minute: get("minute") };
+}

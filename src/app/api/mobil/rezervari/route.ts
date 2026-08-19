@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { cereAutentificare, cerePersonal, eroare, eroareNeasteptata, raspuns } from "@/lib/api/raspuns";
 import { serializeazaRezervare } from "@/lib/api/serializare";
+import { outsideOpeningHours } from "@/lib/availability";
 
 export const maxDuration = 60;
 
@@ -61,6 +62,11 @@ export async function POST(request: Request) {
     const sfarsit = new Date(date.sfarsit);
     if (sfarsit <= inceput) return eroare("Ora de sfârșit trebuie să fie după ora de start.", 422);
     if (inceput < new Date()) return eroare("Nu poți rezerva un interval din trecut.", 422);
+
+    const inAfaraProgramului = outsideOpeningHours(
+      inceput, sfarsit, field.openingHour, field.closingHour
+    );
+    if (inAfaraProgramului) return eroare(inAfaraProgramului, 422);
 
     const ore = (sfarsit.getTime() - inceput.getTime()) / 3_600_000;
 

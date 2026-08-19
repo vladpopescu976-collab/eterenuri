@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { prisma } from "@/lib/prisma";
+import { outsideOpeningHours } from "@/lib/availability";
 import { cereAutentificare, eroare, eroareNeasteptata, raspuns } from "@/lib/api/raspuns";
 import { serializeazaRezervare } from "@/lib/api/serializare";
 
@@ -85,6 +86,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         const sfarsit = new Date(date.sfarsit);
         if (sfarsit <= inceput) return eroare("Ora de sfârșit trebuie să fie după ora de start.", 422);
         if (inceput < new Date()) return eroare("Nu poți muta rezervarea în trecut.", 422);
+
+        const inAfara = outsideOpeningHours(
+          inceput, sfarsit, rezervare.field.openingHour, rezervare.field.closingHour
+        );
+        if (inAfara) return eroare(inAfara, 422);
 
         const ore = (sfarsit.getTime() - inceput.getTime()) / 3_600_000;
 
