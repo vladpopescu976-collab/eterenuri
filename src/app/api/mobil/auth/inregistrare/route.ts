@@ -5,7 +5,6 @@ import { prisma } from "@/lib/prisma";
 import { eroare, eroareNeasteptata, raspuns } from "@/lib/api/raspuns";
 import { trimiteConfirmarea } from "@/lib/verificare-email";
 import { normalizeazaOras } from "@/lib/orase";
-import { cuiValid } from "@/lib/cui";
 import {
   intervalValues,
   nivelValues,
@@ -36,20 +35,12 @@ const schema = z
   preferredTimes: z.array(z.enum(intervalValues)).max(5).optional().default([]),
 
   companyName: z.string().trim().max(120).optional().default(""),
-  taxId: z
-    .string()
-    .trim()
-    .transform((valoare) => valoare.replace(/\s+/g, "").toUpperCase())
-    .optional()
-    .default(""),
-  address: z.string().trim().max(200).optional().default(""),
   website: z.string().trim().max(200).optional().default(""),
 
   marketingOptIn: z.boolean().optional().default(false),
   })
-  // Aceleași reguli ca pe web: un cont Business fără datele firmei nu poate
-  // emite facturi, iar unul fără telefon nu poate fi contactat când apare o
-  // schimbare la rezervare.
+  // Aceleași reguli ca pe web: fără telefon, proprietarul și clientul nu se
+  // pot găsi când apare o schimbare la rezervare.
   .superRefine((date, context) => {
     if (date.phone.trim() === "") {
       context.addIssue({ code: "custom", path: ["phone"], message: "Numărul de telefon este obligatoriu." });
@@ -60,18 +51,6 @@ const schema = z
     if (date.role !== "BUSINESS") return;
     if (date.companyName.trim().length < 2) {
       context.addIssue({ code: "custom", path: ["companyName"], message: "Denumirea firmei este obligatorie." });
-    }
-    if (!cuiValid(date.taxId)) {
-      context.addIssue({
-        code: "custom",
-        path: ["taxId"],
-        message: date.taxId.trim()
-          ? "Codul fiscal nu pare valid. Verifică cifrele."
-          : "Codul fiscal (CUI) este obligatoriu.",
-      });
-    }
-    if (date.address.trim().length < 5) {
-      context.addIssue({ code: "custom", path: ["address"], message: "Adresa sediului este obligatorie." });
     }
   });
 
@@ -106,8 +85,6 @@ export async function POST(request: Request) {
         ...(date.role === "BUSINESS"
           ? {
               companyName: date.companyName || null,
-              taxId: date.taxId || null,
-              address: date.address || null,
               website: date.website || null,
             }
           : {

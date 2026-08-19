@@ -123,6 +123,7 @@ private struct FormularAutentificare: View {
     @State private var nume = ""
     @State private var email = ""
     @State private var parola = ""
+    @State private var confirmareParola = ""
     @State private var telefon = ""
     @State private var eroare: String?
     @State private var seTrimite = false
@@ -136,8 +137,7 @@ private struct FormularAutentificare: View {
     @State private var parolaCeruta = false
     /// Câmpurile în plus de la înregistrare se arată doar când e nevoie de ele.
     @State private var numeFirma = ""
-    @State private var cui = ""
-    @State private var adresa = ""
+    @State private var site = ""
 
     private var titlu: String { rol == .business ? "Cont Business" : "Cont Personal" }
 
@@ -257,6 +257,9 @@ private struct FormularAutentificare: View {
                     .textContentType(modInregistrare ? .newPassword : .password)
 
                 if modInregistrare {
+                    SecureField("Confirmă parola", text: $confirmareParola)
+                        .textContentType(.newPassword)
+
                     TextField("Telefon", text: $telefon)
                         .textContentType(.telephoneNumber)
                         .keyboardType(.phonePad)
@@ -266,7 +269,13 @@ private struct FormularAutentificare: View {
                 }
             } footer: {
                 if modInregistrare {
-                    Text("Parola trebuie să aibă cel puțin 8 caractere, dintre care o literă și o cifră.")
+                    VStack(alignment: .leading, spacing: 4) {
+                        // Scris cât tastezi, nu abia la trimitere.
+                        if !confirmareParola.isEmpty && confirmareParola != parola {
+                            Text("Parolele nu coincid.").foregroundStyle(.red)
+                        }
+                        Text("Parola trebuie să aibă cel puțin 8 caractere, dintre care o literă și o cifră.")
+                    }
                 }
             }
 
@@ -274,10 +283,11 @@ private struct FormularAutentificare: View {
                 Section("Datele firmei") {
                     TextField("Denumirea firmei", text: $numeFirma)
                         .textContentType(.organizationName)
-                    TextField("Cod fiscal (CUI)", text: $cui)
+                    TextField("Site (opțional)", text: $site)
+                        .textContentType(.URL)
+                        .keyboardType(.URL)
+                        .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
-                    TextField("Adresa sediului", text: $adresa)
-                        .textContentType(.fullStreetAddress)
                 }
             }
 
@@ -371,6 +381,22 @@ private struct FormularAutentificare: View {
 
     private func trimite() {
         eroare = nil
+
+        if modInregistrare {
+            guard parola.count >= 8 else {
+                eroare = "Parola trebuie să aibă cel puțin 8 caractere."
+                return
+            }
+            guard parola == confirmareParola else {
+                eroare = "Parolele nu coincid."
+                return
+            }
+            if rol == .business, numeFirma.trimmingCharacters(in: .whitespaces).count < 2 {
+                eroare = "Completează denumirea firmei."
+                return
+            }
+        }
+
         seTrimite = true
         Task {
             defer { seTrimite = false }
@@ -384,8 +410,7 @@ private struct FormularAutentificare: View {
                         telefon: telefon.trimmingCharacters(in: .whitespaces),
                         oras: oras.trimmingCharacters(in: .whitespaces),
                         numeFirma: numeFirma.trimmingCharacters(in: .whitespaces),
-                        cui: cui.trimmingCharacters(in: .whitespaces),
-                        adresaFirmei: self.adresa.trimmingCharacters(in: .whitespaces),
+                        site: site.trimmingCharacters(in: .whitespaces),
                         rol: rol
                     )
                     linkRetrimis = false

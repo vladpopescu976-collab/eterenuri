@@ -60,8 +60,7 @@ final class Sesiune {
         telefon: String,
         oras: String,
         numeFirma: String,
-        cui: String,
-        adresaFirmei: String,
+        site: String,
         rol: Rol
     ) async throws -> Bool {
         struct Corp: Encodable {
@@ -71,8 +70,7 @@ final class Sesiune {
             let phone: String?
             let city: String?
             let companyName: String?
-            let taxId: String?
-            let address: String?
+            let website: String?
             let role: String
         }
         struct Raspuns: Decodable {
@@ -89,10 +87,9 @@ final class Sesiune {
                 phone: telefon.isEmpty ? nil : telefon,
                 city: oras.isEmpty ? nil : oras,
                 // Datele firmei se trimit doar de pe contul Business; serverul
-                // le cere obligatoriu acolo și le ignoră în rest.
+                // le ignoră în rest.
                 companyName: rol == .business && !numeFirma.isEmpty ? numeFirma : nil,
-                taxId: rol == .business && !cui.isEmpty ? cui : nil,
-                address: rol == .business && !adresaFirmei.isEmpty ? adresaFirmei : nil,
+                website: rol == .business && !site.isEmpty ? site : nil,
                 role: rol.rawValue
             )
         )

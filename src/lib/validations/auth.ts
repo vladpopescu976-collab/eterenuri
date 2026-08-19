@@ -1,7 +1,5 @@
 import { z } from "zod";
 
-import { cuiValid, normalizeazaCui } from "@/lib/cui";
-
 const email = z
   .string()
   .min(1, "Emailul este obligatoriu.")
@@ -82,13 +80,6 @@ export const dataNasteriiSchema = z
     { message: `Trebuie să ai cel puțin ${VARSTA_MINIMA} ani ca să îți faci cont.` }
   );
 
-export const cuiSchema = z
-  .string()
-  .trim()
-  .min(1, "Codul fiscal (CUI) este obligatoriu.")
-  .refine(cuiValid, "Codul fiscal nu pare valid. Verifică cifrele.")
-  .transform(normalizeazaCui);
-
 export const siteSchema = z
   .string()
   .trim()
@@ -135,17 +126,10 @@ const campuriInregistrare = {
   preferredTimes: z.array(z.enum(intervalValues)).max(5).optional().default([]),
   sports: z.array(z.enum(sportValues)).max(8).optional().default([]),
 
-  // Doar pentru conturile Business.
+  // Doar pentru conturile Business. Datele de facturare nu se cer la
+  // înregistrare: contul trebuie să se poată deschide repede, iar ele sunt
+  // necesare abia când se ajunge la facturi.
   companyName: z.string().trim().max(120).optional().default(""),
-  // Prefixul „RO” arată că firma e plătitoare de TVA, deci nu îl ștergem —
-  // doar îl aducem la o formă unică, fără spații și cu litere mari.
-  taxId: z
-    .string()
-    .trim()
-    .transform((valoare) => valoare.replace(/\s+/g, "").toUpperCase())
-    .optional()
-    .default(""),
-  address: z.string().trim().max(200).optional().default(""),
   website: siteSchema.optional().default(""),
 
   // Bifa de acceptare a termenilor, cerută la ultimul pas.
@@ -162,7 +146,7 @@ export const registerFormSchema = z
     message: "Parolele nu coincid.",
     path: ["confirmPassword"],
   })
-  // Datele de firmă sunt cerute doar de la conturile Business; verificarea nu
+  // Denumirea firmei e cerută doar de la conturile Business; verificarea nu
   // poate sta pe câmp, fiindcă depinde de tipul de cont ales la primul pas.
   .superRefine((date, context) => {
     if (date.role !== "BUSINESS") return;
@@ -172,22 +156,6 @@ export const registerFormSchema = z
         code: "custom",
         path: ["companyName"],
         message: "Denumirea firmei este obligatorie.",
-      });
-    }
-    if (!cuiValid(date.taxId)) {
-      context.addIssue({
-        code: "custom",
-        path: ["taxId"],
-        message: date.taxId.trim()
-          ? "Codul fiscal nu pare valid. Verifică cifrele."
-          : "Codul fiscal (CUI) este obligatoriu.",
-      });
-    }
-    if (date.address.trim().length < 5) {
-      context.addIssue({
-        code: "custom",
-        path: ["address"],
-        message: "Adresa sediului este obligatorie.",
       });
     }
   });

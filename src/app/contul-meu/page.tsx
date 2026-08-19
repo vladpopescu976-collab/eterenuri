@@ -40,7 +40,7 @@ export default async function ContulMeuPage() {
     select: {
       name: true, email: true, role: true, phone: true, city: true, sports: true,
       birthDate: true, skillLevel: true, preferredTimes: true,
-      companyName: true, taxId: true, website: true, address: true,
+      companyName: true, website: true,
       marketingOptIn: true, createdAt: true,
       _count: { select: { bookings: true, fields: true, reviews: true } },
     },
@@ -59,8 +59,6 @@ export default async function ContulMeuPage() {
 
   if (esteBusiness) {
     if (user.companyName) randuri.push({ eticheta: "Firmă", valoare: user.companyName });
-    if (user.taxId) randuri.push({ eticheta: "CUI", valoare: user.taxId });
-    if (user.address) randuri.push({ eticheta: "Adresă", valoare: user.address });
     if (user.website) randuri.push({ eticheta: "Site", valoare: user.website });
     randuri.push({ eticheta: "Terenuri publicate", valoare: String(user._count.fields) });
   } else {

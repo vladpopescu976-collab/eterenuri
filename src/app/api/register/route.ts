@@ -25,7 +25,7 @@ export async function POST(request: Request) {
   const {
     name, email, password, role, phone, city, sports,
     birthDate, skillLevel, preferredTimes,
-    companyName, taxId, address, website,
+    companyName, website,
     marketingOptIn,
   } = parsed.data;
 
@@ -69,8 +69,6 @@ export async function POST(request: Request) {
       ...(role === "BUSINESS"
         ? {
             companyName: companyName || null,
-            taxId: taxId || null,
-            address: address || null,
             website: website || null,
             sports,
           }

@@ -53,11 +53,9 @@ const PASI = [
 // avansarea, ca formularul să nu se plângă de ce nu ai completat încă.
 const CAMPURI_PERSONAL: (keyof RegisterFormInput)[] = ["phone", "city", "birthDate"];
 const CAMPURI_BUSINESS: (keyof RegisterFormInput)[] = [
+  "companyName",
   "phone",
   "city",
-  "companyName",
-  "taxId",
-  "address",
   "website",
 ];
 
@@ -94,8 +92,6 @@ export function RegisterWizard({ role }: { role: Role }) {
       skillLevel: undefined,
       preferredTimes: [],
       companyName: "",
-      taxId: "",
-      address: "",
       website: "",
       acceptaTermenii: false as unknown as true,
       marketingOptIn: false,
@@ -111,9 +107,33 @@ export function RegisterWizard({ role }: { role: Role }) {
     return ["acceptaTermenii"];
   }
 
+  /**
+   * Verificările pe care zod le pune la nivel de obiect, nu pe câmp.
+   *
+   * `trigger` cu o listă de câmpuri nu le ridică: întreabă schema, dar apoi
+   * copiază doar erorile găsite exact pe numele cerute, iar potrivirea
+   * parolelor și denumirea firmei sunt legate de tot formularul. Fără linia
+   * asta, se trecea la pasul următor cu două parole diferite.
+   */
+  function verificariIntreCampuri(index: number): boolean {
+    const valori = form.getValues();
+
+    if (index === 1 && valori.password !== valori.confirmPassword) {
+      form.setError("confirmPassword", { message: "Parolele nu coincid." });
+      return false;
+    }
+
+    if (index === 2 && valori.role === "BUSINESS" && (valori.companyName ?? "").trim().length < 2) {
+      form.setError("companyName", { message: "Denumirea firmei este obligatorie." });
+      return false;
+    }
+
+    return true;
+  }
+
   async function inainte() {
     const valid = await form.trigger(campuriPasului(pas));
-    if (!valid) return;
+    if (!valid || !verificariIntreCampuri(pas)) return;
     setDirectie(1);
     setPas((curent) => Math.min(curent + 1, PASI.length - 1));
   }
@@ -399,7 +419,12 @@ function PasDate({ form }: { form: FormularInregistrare }) {
                 {...field}
               />
             </FormControl>
-            <FormMessage />
+            {/* Cât scrii, fără să aștepți butonul „Continuă”. */}
+            {String(field.value ?? "").length > 0 && field.value !== parola ? (
+              <p className="text-[13px] text-destructive">Parolele nu coincid.</p>
+            ) : (
+              <FormMessage />
+            )}
           </FormItem>
         )}
       />
@@ -620,24 +645,7 @@ function ProfilBusiness({ form }: { form: FormularInregistrare }) {
             <FormControl>
               <Input placeholder="Sport Arena SRL" autoComplete="organization" {...field} />
             </FormControl>
-            <FormDescription>Așa cum apare în actele firmei.</FormDescription>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-
-      <FormField
-        control={form.control}
-        name="taxId"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Cod fiscal (CUI)</FormLabel>
-            <FormControl>
-              <Input placeholder="RO12345678" inputMode="numeric" {...field} />
-            </FormControl>
-            <FormDescription>
-              Îl verificăm după cifra de control, ca o greșeală de tastare să nu ajungă pe facturi.
-            </FormDescription>
+            <FormDescription>Apare pe paginile terenurilor tale.</FormDescription>
             <FormMessage />
           </FormItem>
         )}
@@ -645,34 +653,6 @@ function ProfilBusiness({ form }: { form: FormularInregistrare }) {
 
       <CampTelefon form={form} />
       <CampOras form={form} />
-
-      <FormField
-        control={form.control}
-        name="address"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Adresa sediului</FormLabel>
-            <FormControl>
-              <Input placeholder="Str. Exemplu nr. 10" autoComplete="street-address" {...field} />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-
-      <FormField
-        control={form.control}
-        name="website"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Site (opțional)</FormLabel>
-            <FormControl>
-              <Input placeholder="terenulmeu.ro" inputMode="url" {...field} />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
 
       <FormItem>
         <FormLabel>Ce sporturi se joacă pe terenurile tale</FormLabel>
@@ -688,6 +668,21 @@ function ProfilBusiness({ form }: { form: FormularInregistrare }) {
         </div>
         <FormDescription>Opțional. Terenurile se adaugă în detaliu după înregistrare.</FormDescription>
       </FormItem>
+
+      {/* Ultimul, fiindcă e singurul câmp la care mulți nu au ce răspunde. */}
+      <FormField
+        control={form.control}
+        name="website"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Site (opțional)</FormLabel>
+            <FormControl>
+              <Input placeholder="terenulmeu.ro" inputMode="url" {...field} />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
     </>
   );
 }
@@ -749,8 +744,6 @@ function PasRezumat({ form }: { form: FormularInregistrare }) {
         {esteBusiness ? (
           <>
             {valori.companyName ? <Rand eticheta="Firmă" valoare={valori.companyName} /> : null}
-            {valori.taxId ? <Rand eticheta="CUI" valoare={valori.taxId} /> : null}
-            {valori.address ? <Rand eticheta="Adresă" valoare={valori.address} /> : null}
             {valori.website ? <Rand eticheta="Site" valoare={valori.website} /> : null}
           </>
         ) : (

@@ -75,13 +75,11 @@ model User {
   skillLevel     SkillLevel?
   preferredTimes PreferredTime[]
 
-  // Doar pentru conturile Business. Datele firmei apar pe paginile terenurilor
-  // si sunt necesare pentru facturare.
+  // Doar pentru conturile Business. Datele de facturare nu se cer la
+  // inregistrare: contul trebuie sa se deschida repede, iar ele sunt necesare
+  // abia cand se ajunge la facturi.
   companyName String?
-  /// Codul de identificare fiscala, verificat cu cifra de control.
-  taxId       String?
   website     String?
-  address     String?
 
   /// Momentul in care au fost acceptati termenii, pastrat ca dovada.
   acceptedTermsAt DateTime?
