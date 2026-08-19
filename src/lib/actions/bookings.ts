@@ -7,6 +7,7 @@ import type { Prisma } from "@prisma/client";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { outsideOpeningHours } from "@/lib/availability";
+import { anuntaRezervare } from "@/lib/emailuri/rezervari";
 import { ActionError, fail, ok, toActionError, type ActionResult } from "@/lib/actions/result";
 
 // Statusurile care chiar ocupă terenul. Aceleași sunt folosite și de
@@ -149,6 +150,8 @@ export async function createBookingRequest(
       throw error;
     }
 
+    anuntaRezervare(booking.id, "cerere-noua");
+
     revalidatePath(`/terenuri/${field.id}`);
     revalidatePath("/rezervarile-mele");
     return ok(booking.id);
@@ -229,6 +232,8 @@ export async function cancelBooking(bookingId: string): Promise<ActionResult> {
       where: { id: bookingId },
       data: { status: "CANCELLED", proposedStartTime: null, proposedEndTime: null },
     });
+
+    anuntaRezervare(bookingId, "anulata-de-client");
 
     revalidatePath("/rezervarile-mele");
     revalidatePath(`/terenuri/${booking.fieldId}`);
@@ -335,6 +340,8 @@ export async function updateBookingTime(
       throw error;
     }
 
+    anuntaRezervare(booking.id, "mutata-de-client");
+
     revalidatePath("/rezervarile-mele");
     revalidatePath(`/terenuri/${booking.fieldId}`);
     revalidatePath("/dashboard/business");
@@ -378,6 +385,8 @@ export async function acceptReschedule(bookingId: string): Promise<ActionResult>
       throw error;
     }
 
+    anuntaRezervare(booking.id, "mutare-acceptata");
+
     revalidatePath("/rezervarile-mele");
     revalidatePath(`/terenuri/${booking.fieldId}`);
     return ok();
@@ -397,6 +406,8 @@ export async function declineReschedule(bookingId: string): Promise<ActionResult
       where: { id: bookingId },
       data: { status: "REJECTED", proposedStartTime: null, proposedEndTime: null },
     });
+    anuntaRezervare(booking.id, "mutare-refuzata");
+
     revalidatePath("/rezervarile-mele");
     return ok();
   } catch (error) {

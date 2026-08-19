@@ -26,6 +26,25 @@ enum SportType {
   OTHER
 }
 
+// Cât de serios joacă cineva — folosit ca să propunem terenuri și parteneri
+// potriviți, nu ca să limităm ceva.
+enum SkillLevel {
+  INCEPATOR
+  MEDIU
+  AVANSAT
+  COMPETITIV
+}
+
+// Când joacă de obicei. Nu sunt ore exacte, ci ferestrele în care oamenii
+// chiar își fac planuri.
+enum PreferredTime {
+  DIMINEATA
+  PRANZ
+  DUPA_AMIAZA
+  SEARA
+  WEEKEND
+}
+
 enum BookingStatus {
   PENDING
   CONFIRMED
@@ -51,6 +70,24 @@ model User {
   city   String?
   sports SportType[]
 
+  // Doar pentru conturile Personal.
+  birthDate      DateTime?
+  skillLevel     SkillLevel?
+  preferredTimes PreferredTime[]
+
+  // Doar pentru conturile Business. Datele firmei apar pe paginile terenurilor
+  // si sunt necesare pentru facturare.
+  companyName String?
+  /// Codul de identificare fiscala, verificat cu cifra de control.
+  taxId       String?
+  website     String?
+  address     String?
+
+  /// Momentul in care au fost acceptati termenii, pastrat ca dovada.
+  acceptedTermsAt DateTime?
+  /// Acordul separat pentru mesaje de marketing. Implicit nu.
+  marketingOptIn  Boolean   @default(false)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -64,6 +101,7 @@ model User {
   reviews   Review[]   @relation("UserReviews")
 
   tokenuriEmail EmailVerificationToken[]
+  tokenuriParola PasswordResetToken[]
 
   @@map("users")
 }
@@ -114,6 +152,23 @@ model LoginAttempt {
   ultimaEroare DateTime @default(now())
 
   @@map("login_attempts")
+}
+
+// Linkul de resetare a parolei. Aceleasi reguli ca la confirmare: pastram
+// doar amprenta, valabilitatea e scurta si un singur link e activ odata.
+model PasswordResetToken {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  tokenHash String @unique
+
+  expires   DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("password_reset_tokens")
 }
 
 // Linkul de confirmare trimis pe email dupa inregistrare.

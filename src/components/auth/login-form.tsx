@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { signIn } from "next-auth/react";
@@ -160,6 +161,15 @@ export function LoginForm({
           {isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
           {isLoading ? "Se verifică…" : "Autentificare"}
         </Button>
+
+        <p className="text-center text-[13px]">
+          <Link
+            href="/parola-uitata"
+            className="text-muted-foreground underline underline-offset-4 hover:text-foreground"
+          >
+            Ți-ai uitat parola?
+          </Link>
+        </p>
 
         {durataMare && (
           <p className="text-center text-[12.5px] text-muted-foreground">

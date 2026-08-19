@@ -5,11 +5,20 @@ import { prisma } from "@/lib/prisma";
 import { eroare, eroareNeasteptata, raspuns } from "@/lib/api/raspuns";
 import { trimiteConfirmarea } from "@/lib/verificare-email";
 import { normalizeazaOras } from "@/lib/orase";
-import { numeSchema, parolaSchema, sportValues, telefonSchema } from "@/lib/validations/auth";
+import { cuiValid } from "@/lib/cui";
+import {
+  intervalValues,
+  nivelValues,
+  numeSchema,
+  parolaSchema,
+  sportValues,
+  telefonSchema,
+} from "@/lib/validations/auth";
 
 export const maxDuration = 60;
 
-const schema = z.object({
+const schema = z
+  .object({
   name: numeSchema,
   email: z
     .string()
@@ -21,7 +30,50 @@ const schema = z.object({
   city: z.string().trim().max(80).optional().default(""),
   sports: z.array(z.enum(sportValues)).max(8).optional().default([]),
   role: z.enum(["PERSONAL", "BUSINESS"]),
-});
+
+  birthDate: z.string().trim().optional().default(""),
+  skillLevel: z.enum(nivelValues).optional(),
+  preferredTimes: z.array(z.enum(intervalValues)).max(5).optional().default([]),
+
+  companyName: z.string().trim().max(120).optional().default(""),
+  taxId: z
+    .string()
+    .trim()
+    .transform((valoare) => valoare.replace(/\s+/g, "").toUpperCase())
+    .optional()
+    .default(""),
+  address: z.string().trim().max(200).optional().default(""),
+  website: z.string().trim().max(200).optional().default(""),
+
+  marketingOptIn: z.boolean().optional().default(false),
+  })
+  // Aceleași reguli ca pe web: un cont Business fără datele firmei nu poate
+  // emite facturi, iar unul fără telefon nu poate fi contactat când apare o
+  // schimbare la rezervare.
+  .superRefine((date, context) => {
+    if (date.phone.trim() === "") {
+      context.addIssue({ code: "custom", path: ["phone"], message: "Numărul de telefon este obligatoriu." });
+    }
+    if (date.city.trim().length < 2) {
+      context.addIssue({ code: "custom", path: ["city"], message: "Orașul este obligatoriu." });
+    }
+    if (date.role !== "BUSINESS") return;
+    if (date.companyName.trim().length < 2) {
+      context.addIssue({ code: "custom", path: ["companyName"], message: "Denumirea firmei este obligatorie." });
+    }
+    if (!cuiValid(date.taxId)) {
+      context.addIssue({
+        code: "custom",
+        path: ["taxId"],
+        message: date.taxId.trim()
+          ? "Codul fiscal nu pare valid. Verifică cifrele."
+          : "Codul fiscal (CUI) este obligatoriu.",
+      });
+    }
+    if (date.address.trim().length < 5) {
+      context.addIssue({ code: "custom", path: ["address"], message: "Adresa sediului este obligatorie." });
+    }
+  });
 
 export async function POST(request: Request) {
   try {
@@ -50,6 +102,21 @@ export async function POST(request: Request) {
         city: date.city ? normalizeazaOras(date.city) : null,
         sports: date.sports,
         role: date.role,
+        // Fiecare tip de cont pastreaza doar ce l-am intrebat.
+        ...(date.role === "BUSINESS"
+          ? {
+              companyName: date.companyName || null,
+              taxId: date.taxId || null,
+              address: date.address || null,
+              website: date.website || null,
+            }
+          : {
+              birthDate: date.birthDate ? new Date(`${date.birthDate}T00:00:00Z`) : null,
+              skillLevel: date.skillLevel ?? null,
+              preferredTimes: date.preferredTimes,
+            }),
+        acceptedTermsAt: new Date(),
+        marketingOptIn: date.marketingOptIn,
       },
     });
 

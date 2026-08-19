@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { AnimatePresence, motion, useMotionValueEvent, useScroll } from "framer-motion";
-import { CalendarCheck, Heart, LayoutDashboard, LogOut, Menu, User as UserIcon, X } from "lucide-react";
+import { CalendarCheck, Heart, LayoutDashboard, LogOut, Menu, Settings, User as UserIcon, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -179,6 +179,10 @@ export function Navbar() {
                       Terenuri favorite
                     </DropdownMenuItem>
                   )}
+                  <DropdownMenuItem render={<Link href="/contul-meu" />}>
+                    <Settings className="h-4 w-4" />
+                    Setările contului
+                  </DropdownMenuItem>
                   <DropdownMenuItem
                     variant="destructive"
                     onClick={() => signOut({ callbackUrl: "/" })}
@@ -307,6 +311,14 @@ export function Navbar() {
                           {actionNeeded}
                         </span>
                       )}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      nativeButton={false}
+                      render={<Link href="/contul-meu" onClick={() => setMobileOpen(false)} />}
+                    >
+                      <Settings className="h-4 w-4" />
+                      Setările contului
                     </Button>
                     <Button
                       variant="outline"

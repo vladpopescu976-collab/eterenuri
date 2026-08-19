@@ -69,6 +69,12 @@ struct Utilizator: Codable, Identifiable, Sendable {
     let email: String
     let rol: Rol
     let telefon: String?
+    // Completate la înregistrare. Opționale, fiindcă conturile mai vechi
+    // n-au fost întrebate.
+    var oras: String?
+    var sporturi: [Sport]?
+    var numeFirma: String?
+    var membruDin: Date?
 }
 
 struct RaspunsAutentificare: Codable, Sendable {

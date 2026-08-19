@@ -22,7 +22,12 @@ export async function POST(request: Request) {
     );
   }
 
-  const { name, email, password, role, phone, city, sports } = parsed.data;
+  const {
+    name, email, password, role, phone, city, sports,
+    birthDate, skillLevel, preferredTimes,
+    companyName, taxId, address, website,
+    marketingOptIn,
+  } = parsed.data;
 
   const existingUser = await prisma.user.findUnique({
     where: { email },
@@ -59,7 +64,24 @@ export async function POST(request: Request) {
       role,
       phone: phone || null,
       city: city ? normalizeazaOras(city) : null,
-      sports,
+      // Fiecare tip de cont pastreaza doar ce l-am intrebat: un cont Personal
+      // n-are CUI, iar unul Business n-are nivel de joc.
+      ...(role === "BUSINESS"
+        ? {
+            companyName: companyName || null,
+            taxId: taxId || null,
+            address: address || null,
+            website: website || null,
+            sports,
+          }
+        : {
+            sports,
+            birthDate: birthDate ? new Date(`${birthDate}T00:00:00Z`) : null,
+            skillLevel: skillLevel ?? null,
+            preferredTimes,
+          }),
+      acceptedTermsAt: new Date(),
+      marketingOptIn,
       // emailVerified ramane null: contul exista, dar nu se poate autentifica
       // pana cand adresa nu e confirmata.
     },

@@ -132,6 +132,12 @@ private struct FormularAutentificare: View {
     @State private var asteaptaConfirmare: String?
     @State private var emailulAPlecat = true
     @State private var linkRetrimis = false
+    @State private var oras = ""
+    @State private var parolaCeruta = false
+    /// Câmpurile în plus de la înregistrare se arată doar când e nevoie de ele.
+    @State private var numeFirma = ""
+    @State private var cui = ""
+    @State private var adresa = ""
 
     private var titlu: String { rol == .business ? "Cont Business" : "Cont Personal" }
 
@@ -237,7 +243,7 @@ private struct FormularAutentificare: View {
 
             Section {
                 if modInregistrare {
-                    TextField("Nume", text: $nume)
+                    TextField(rol == .business ? "Persoană de contact" : "Nume", text: $nume)
                         .textContentType(.name)
                 }
 
@@ -251,13 +257,41 @@ private struct FormularAutentificare: View {
                     .textContentType(modInregistrare ? .newPassword : .password)
 
                 if modInregistrare {
-                    TextField("Telefon (opțional)", text: $telefon)
+                    TextField("Telefon", text: $telefon)
                         .textContentType(.telephoneNumber)
                         .keyboardType(.phonePad)
+
+                    TextField("Oraș", text: $oras)
+                        .textContentType(.addressCity)
                 }
             } footer: {
                 if modInregistrare {
                     Text("Parola trebuie să aibă cel puțin 8 caractere, dintre care o literă și o cifră.")
+                }
+            }
+
+            if modInregistrare && rol == .business {
+                Section("Datele firmei") {
+                    TextField("Denumirea firmei", text: $numeFirma)
+                        .textContentType(.organizationName)
+                    TextField("Cod fiscal (CUI)", text: $cui)
+                        .autocorrectionDisabled()
+                    TextField("Adresa sediului", text: $adresa)
+                        .textContentType(.fullStreetAddress)
+                }
+            }
+
+            if !modInregistrare {
+                Section {
+                    Button(parolaCeruta ? "Link trimis pe email" : "Am uitat parola") {
+                        cereParolaNoua()
+                    }
+                    .font(.footnote)
+                    .disabled(parolaCeruta || seTrimite)
+                } footer: {
+                    if parolaCeruta {
+                        Text("Dacă adresa are un cont, linkul de schimbare a parolei e pe drum. Este valabil o oră.")
+                    }
                 }
             }
 
@@ -290,9 +324,34 @@ private struct FormularAutentificare: View {
                 .listRowBackground(Tema.accent)
                 .foregroundStyle(.white)
             } footer: {
-                if seTrimite {
-                    Text("Prima autentificare după o pauză poate dura până la un minut, cât pornește serverul.")
+                VStack(alignment: .leading, spacing: 8) {
+                    if seTrimite {
+                        Text("Prima autentificare după o pauză poate dura până la un minut, cât pornește serverul.")
+                    }
+                    if modInregistrare {
+                        // Acceptarea prin acțiune, notată pe server ca dată.
+                        Text("Creând contul accepți termenii și condițiile și politica de confidențialitate, disponibile pe eterenuri.ro.")
+                    }
                 }
+            }
+        }
+    }
+
+    private func cereParolaNoua() {
+        let adresa = email.trimmingCharacters(in: .whitespaces)
+        guard adresa.contains("@") else {
+            eroare = "Scrie întâi adresa de email."
+            return
+        }
+        eroare = nil
+        seTrimite = true
+        Task {
+            defer { seTrimite = false }
+            do {
+                try await sesiune.cereParolaNoua(email: adresa)
+                parolaCeruta = true
+            } catch {
+                eroare = error.localizedDescription
             }
         }
     }
@@ -323,6 +382,10 @@ private struct FormularAutentificare: View {
                         email: adresa,
                         parola: parola,
                         telefon: telefon.trimmingCharacters(in: .whitespaces),
+                        oras: oras.trimmingCharacters(in: .whitespaces),
+                        numeFirma: numeFirma.trimmingCharacters(in: .whitespaces),
+                        cui: cui.trimmingCharacters(in: .whitespaces),
+                        adresaFirmei: self.adresa.trimmingCharacters(in: .whitespaces),
                         rol: rol
                     )
                     linkRetrimis = false

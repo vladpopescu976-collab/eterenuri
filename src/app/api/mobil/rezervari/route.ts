@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { cereAutentificare, cerePersonal, eroare, eroareNeasteptata, raspuns } from "@/lib/api/raspuns";
 import { serializeazaRezervare } from "@/lib/api/serializare";
 import { outsideOpeningHours } from "@/lib/availability";
+import { anuntaRezervare } from "@/lib/emailuri/rezervari";
 
 export const maxDuration = 60;
 
@@ -105,6 +106,7 @@ export async function POST(request: Request) {
         });
       });
 
+      anuntaRezervare(rezervare.id, "cerere-noua");
       return raspuns(serializeazaRezervare(rezervare), 201);
     } catch (err) {
       const text = err instanceof Error ? err.message : "";

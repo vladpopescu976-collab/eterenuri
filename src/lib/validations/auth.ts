@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { cuiValid, normalizeazaCui } from "@/lib/cui";
+
 const email = z
   .string()
   .min(1, "Emailul este obligatoriu.")
@@ -49,6 +51,52 @@ export const telefonSchema = z
     message: "Număr de telefon invalid. Exemplu: 0722 123 456.",
   });
 
+export const nivelValues = ["INCEPATOR", "MEDIU", "AVANSAT", "COMPETITIV"] as const;
+export const intervalValues = [
+  "DIMINEATA",
+  "PRANZ",
+  "DUPA_AMIAZA",
+  "SEARA",
+  "WEEKEND",
+] as const;
+
+// Sub 16 ani nu se poate consimți valabil la prelucrarea datelor în România,
+// deci nu se poate deschide cont.
+const VARSTA_MINIMA = 16;
+
+export const dataNasteriiSchema = z
+  .string()
+  .trim()
+  .refine((valoare) => valoare === "" || /^\d{4}-\d{2}-\d{2}$/.test(valoare), {
+    message: "Data nașterii nu este validă.",
+  })
+  .refine(
+    (valoare) => {
+      if (valoare === "") return true;
+      const data = new Date(`${valoare}T00:00:00Z`);
+      if (Number.isNaN(data.getTime())) return false;
+      const limita = new Date();
+      limita.setUTCFullYear(limita.getUTCFullYear() - VARSTA_MINIMA);
+      return data <= limita;
+    },
+    { message: `Trebuie să ai cel puțin ${VARSTA_MINIMA} ani ca să îți faci cont.` }
+  );
+
+export const cuiSchema = z
+  .string()
+  .trim()
+  .min(1, "Codul fiscal (CUI) este obligatoriu.")
+  .refine(cuiValid, "Codul fiscal nu pare valid. Verifică cifrele.")
+  .transform(normalizeazaCui);
+
+export const siteSchema = z
+  .string()
+  .trim()
+  .refine(
+    (valoare) => valoare === "" || /^(https?:\/\/)?[\w-]+(\.[\w-]+)+([/?#].*)?$/i.test(valoare),
+    "Adresa site-ului nu pare validă. Exemplu: terenulmeu.ro"
+  );
+
 /** Pasul 1 al formularului: cine ești și cum intri în cont. */
 export const pas1Schema = z
   .object({
@@ -76,21 +124,72 @@ const campuriInregistrare = {
   password: parolaSchema,
   confirmPassword: z.string().min(1, "Confirmarea parolei este obligatorie."),
   role: z.enum(["PERSONAL", "BUSINESS"]),
-  phone: telefonSchema.optional().default(""),
-  city: z.string().trim().max(80).optional().default(""),
+  // Telefonul e obligatoriu: rezervările se rezolvă la telefon când apare ceva
+  // neprevăzut, iar fără el proprietarul și clientul nu se pot găsi.
+  phone: telefonSchema.refine((valoare) => valoare !== "", "Numărul de telefon este obligatoriu."),
+  city: z.string().trim().min(2, "Alege orașul.").max(80),
+
+  // Doar pentru conturile Personal.
+  birthDate: dataNasteriiSchema.optional().default(""),
+  skillLevel: z.enum(nivelValues).optional(),
+  preferredTimes: z.array(z.enum(intervalValues)).max(5).optional().default([]),
   sports: z.array(z.enum(sportValues)).max(8).optional().default([]),
+
+  // Doar pentru conturile Business.
+  companyName: z.string().trim().max(120).optional().default(""),
+  // Prefixul „RO” arată că firma e plătitoare de TVA, deci nu îl ștergem —
+  // doar îl aducem la o formă unică, fără spații și cu litere mari.
+  taxId: z
+    .string()
+    .trim()
+    .transform((valoare) => valoare.replace(/\s+/g, "").toUpperCase())
+    .optional()
+    .default(""),
+  address: z.string().trim().max(200).optional().default(""),
+  website: siteSchema.optional().default(""),
+
   // Bifa de acceptare a termenilor, cerută la ultimul pas.
   acceptaTermenii: z.literal(true, {
     message: "Trebuie să accepți termenii ca să continui.",
   }),
+  marketingOptIn: z.boolean().optional().default(false),
 };
 
-/** Formularul complet, așa cum îl trimite pasul 3. */
+/** Formularul complet, așa cum îl trimite ultimul pas. */
 export const registerFormSchema = z
   .object(campuriInregistrare)
   .refine((date) => date.password === date.confirmPassword, {
     message: "Parolele nu coincid.",
     path: ["confirmPassword"],
+  })
+  // Datele de firmă sunt cerute doar de la conturile Business; verificarea nu
+  // poate sta pe câmp, fiindcă depinde de tipul de cont ales la primul pas.
+  .superRefine((date, context) => {
+    if (date.role !== "BUSINESS") return;
+
+    if (date.companyName.trim().length < 2) {
+      context.addIssue({
+        code: "custom",
+        path: ["companyName"],
+        message: "Denumirea firmei este obligatorie.",
+      });
+    }
+    if (!cuiValid(date.taxId)) {
+      context.addIssue({
+        code: "custom",
+        path: ["taxId"],
+        message: date.taxId.trim()
+          ? "Codul fiscal nu pare valid. Verifică cifrele."
+          : "Codul fiscal (CUI) este obligatoriu.",
+      });
+    }
+    if (date.address.trim().length < 5) {
+      context.addIssue({
+        code: "custom",
+        path: ["address"],
+        message: "Adresa sediului este obligatorie.",
+      });
+    }
   });
 
 export type RegisterFormInput = z.input<typeof registerFormSchema>;

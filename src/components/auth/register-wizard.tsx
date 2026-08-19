@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useForm, type UseFormReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -29,7 +29,10 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { RetrimiteConfirmarea } from "@/components/auth/retrimite-confirmarea";
+import { PutereaParolei } from "@/components/auth/puterea-parolei";
 import {
+  intervalValues,
+  nivelValues,
   registerFormSchema,
   type RegisterFormInput,
   type RegisterFormValues,
@@ -40,18 +43,23 @@ import { cn } from "@/lib/utils";
 import type { Role, SportType } from "@prisma/client";
 
 const PASI = [
+  { titlu: "Tipul contului", descriere: "Ce faci pe Eterenuri: joci sau închiriezi?" },
   { titlu: "Date de bază", descriere: "Cum te cheamă și cum intri în cont." },
-  { titlu: "Profil", descriere: "Câteva detalii ca să îți arătăm ce te interesează." },
+  { titlu: "Profil", descriere: "Detaliile de care avem nevoie ca să funcționeze rezervările." },
   { titlu: "Confirmare", descriere: "Verifică datele și creează contul." },
 ] as const;
 
 // Câmpurile validate înainte de trecerea la pasul următor. Restul nu blochează
 // avansarea, ca formularul să nu se plângă de ce nu ai completat încă.
-const CAMPURI_PAS: Record<number, (keyof RegisterFormInput)[]> = {
-  0: ["name", "email", "password", "confirmPassword"],
-  1: ["role", "phone", "city"],
-  2: ["acceptaTermenii"],
-};
+const CAMPURI_PERSONAL: (keyof RegisterFormInput)[] = ["phone", "city", "birthDate"];
+const CAMPURI_BUSINESS: (keyof RegisterFormInput)[] = [
+  "phone",
+  "city",
+  "companyName",
+  "taxId",
+  "address",
+  "website",
+];
 
 type FormularInregistrare = UseFormReturn<RegisterFormInput, unknown, RegisterFormValues>;
 
@@ -82,12 +90,29 @@ export function RegisterWizard({ role }: { role: Role }) {
       phone: "",
       city: "",
       sports: [],
+      birthDate: "",
+      skillLevel: undefined,
+      preferredTimes: [],
+      companyName: "",
+      taxId: "",
+      address: "",
+      website: "",
       acceptaTermenii: false as unknown as true,
+      marketingOptIn: false,
     },
   });
 
+  function campuriPasului(index: number): (keyof RegisterFormInput)[] {
+    if (index === 0) return ["role"];
+    if (index === 1) return ["name", "email", "password", "confirmPassword"];
+    if (index === 2) {
+      return form.getValues("role") === "BUSINESS" ? CAMPURI_BUSINESS : CAMPURI_PERSONAL;
+    }
+    return ["acceptaTermenii"];
+  }
+
   async function inainte() {
-    const valid = await form.trigger(CAMPURI_PAS[pas]);
+    const valid = await form.trigger(campuriPasului(pas));
     if (!valid) return;
     setDirectie(1);
     setPas((curent) => Math.min(curent + 1, PASI.length - 1));
@@ -113,7 +138,7 @@ export function RegisterWizard({ role }: { role: Role }) {
         // Emailul deja folosit se corectează în primul pas.
         if (raspuns.status === 409) {
           setDirectie(-1);
-          setPas(0);
+          setPas(1);
           form.setError("email", { message: "Există deja un cont cu acest email." });
         }
         return;
@@ -154,9 +179,10 @@ export function RegisterWizard({ role }: { role: Role }) {
             transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
             className="space-y-4"
           >
-            {pas === 0 && <PasDate form={form} />}
-            {pas === 1 && <PasProfil form={form} />}
-            {pas === 2 && <PasRezumat form={form} />}
+            {pas === 0 && <PasTipCont form={form} />}
+            {pas === 1 && <PasDate form={form} />}
+            {pas === 2 && <PasProfil form={form} />}
+            {pas === 3 && <PasRezumat form={form} />}
           </motion.div>
         </div>
 
@@ -213,7 +239,94 @@ function Progres({ pas }: { pas: number }) {
   );
 }
 
-// MARK: - Pasul 1
+// MARK: - Pasul 1: tipul contului
+
+function PasTipCont({ form }: { form: FormularInregistrare }) {
+  return (
+    <FormField
+      control={form.control}
+      name="role"
+      render={({ field }) => (
+        <FormItem>
+          <div className="space-y-2.5">
+            <OptiuneCont
+              activ={field.value === "PERSONAL"}
+              titlu="Vreau să joc"
+              descriere="Cauți terenuri libere, rezervi și îți ții rezervările la un loc."
+              detalii={["Căutare pe oraș, sport și oră", "Rezervi în câteva secunde", "Terenuri favorite și recenzii"]}
+              Icon={User}
+              onClick={() => field.onChange("PERSONAL")}
+            />
+            <OptiuneCont
+              activ={field.value === "BUSINESS"}
+              titlu="Am terenuri de închiriat"
+              descriere="Îți publici terenurile și primești rezervări direct în calendar."
+              detalii={["Calendar și orar pe fiecare teren", "Aprobi sau muți cererile", "Rezervări luate la telefon, la un loc"]}
+              Icon={Building2}
+              onClick={() => field.onChange("BUSINESS")}
+            />
+          </div>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  );
+}
+
+function OptiuneCont({
+  activ,
+  titlu,
+  descriere,
+  detalii,
+  Icon,
+  onClick,
+}: {
+  activ: boolean;
+  titlu: string;
+  descriere: string;
+  detalii: string[];
+  Icon: typeof User;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={activ}
+      aria-label={titlu}
+      className={cn(
+        "flex w-full items-start gap-3 rounded-xl border p-4 text-left transition-colors",
+        activ ? "border-primary bg-primary/5" : "border-border hover:bg-muted"
+      )}
+    >
+      <span
+        className={cn(
+          "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg",
+          activ ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"
+        )}
+      >
+        <Icon className="h-5 w-5" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="flex items-center gap-2">
+          <span className="text-sm font-semibold">{titlu}</span>
+          {activ && <Check className="h-4 w-4 text-primary" />}
+        </span>
+        <span className="mt-0.5 block text-xs text-muted-foreground">{descriere}</span>
+        <span className="mt-2 block space-y-1">
+          {detalii.map((detaliu) => (
+            <span key={detaliu} className="flex items-start gap-1.5 text-xs text-muted-foreground">
+              <Check className="mt-0.5 h-3 w-3 shrink-0 text-primary/70" />
+              {detaliu}
+            </span>
+          ))}
+        </span>
+      </span>
+    </button>
+  );
+}
+
+// MARK: - Pasul 2: datele de bază
 
 function PasDate({ form }: { form: FormularInregistrare }) {
   const parola = form.watch("password");
@@ -294,83 +407,220 @@ function PasDate({ form }: { form: FormularInregistrare }) {
   );
 }
 
-/** Cât de bună e parola, cât o scrii. Nu blochează nimic, doar arată. */
-function PutereaParolei({ parola }: { parola: string }) {
-  const scor = useMemo(() => {
-    if (!parola) return 0;
-    let puncte = 0;
-    if (parola.length >= 8) puncte++;
-    if (parola.length >= 12) puncte++;
-    if (/[a-z]/.test(parola) && /[A-Z]/.test(parola)) puncte++;
-    if (/\d/.test(parola)) puncte++;
-    if (/[^\w\s]/.test(parola)) puncte++;
-    return Math.min(puncte, 4);
-  }, [parola]);
+// MARK: - Pasul 3: profilul, diferit pe fiecare tip de cont
 
-  if (!parola) return null;
+const NIVELURI: { valoare: (typeof nivelValues)[number]; eticheta: string; detaliu: string }[] = [
+  { valoare: "INCEPATOR", eticheta: "Începător", detaliu: "Joc din când în când, de plăcere." },
+  { valoare: "MEDIU", eticheta: "Mediu", detaliu: "Joc regulat, cu aceiași prieteni." },
+  { valoare: "AVANSAT", eticheta: "Avansat", detaliu: "Joc des și țin la nivelul partenerilor." },
+  { valoare: "COMPETITIV", eticheta: "Competitiv", detaliu: "Joc în ligi sau competiții." },
+];
 
-  const etichete = ["Foarte slabă", "Slabă", "Acceptabilă", "Bună", "Puternică"];
-  const culori = ["bg-destructive", "bg-destructive", "bg-amber-500", "bg-emerald-500", "bg-emerald-600"];
+const INTERVALE: { valoare: (typeof intervalValues)[number]; eticheta: string }[] = [
+  { valoare: "DIMINEATA", eticheta: "Dimineața" },
+  { valoare: "PRANZ", eticheta: "La prânz" },
+  { valoare: "DUPA_AMIAZA", eticheta: "După-amiaza" },
+  { valoare: "SEARA", eticheta: "Seara" },
+  { valoare: "WEEKEND", eticheta: "În weekend" },
+];
 
-  return (
-    <div className="space-y-1.5 pt-0.5">
-      <div className="flex gap-1">
-        {[0, 1, 2, 3].map((index) => (
-          <div
-            key={index}
-            className={cn(
-              "h-1 flex-1 rounded-full transition-colors",
-              index < scor ? culori[scor] : "bg-muted"
-            )}
-          />
-        ))}
-      </div>
-      <p className="text-xs text-muted-foreground">Parolă {etichete[scor].toLowerCase()}</p>
-    </div>
+function PasProfil({ form }: { form: FormularInregistrare }) {
+  return form.watch("role") === "BUSINESS" ? (
+    <ProfilBusiness form={form} />
+  ) : (
+    <ProfilPersonal form={form} />
   );
 }
 
-// MARK: - Pasul 2
+function CampOras({ form }: { form: FormularInregistrare }) {
+  const esteBusiness = form.watch("role") === "BUSINESS";
+  return (
+    <FormField
+      control={form.control}
+      name="city"
+      render={({ field }) => (
+        <FormItem>
+          <FormLabel>Oraș</FormLabel>
+          <FormControl>
+            <Input
+              placeholder="Timișoara"
+              list="orase-inregistrare"
+              autoComplete="address-level2"
+              {...field}
+            />
+          </FormControl>
+          <datalist id="orase-inregistrare">
+            {ORASE_ROMANIA.map((oras) => (
+              <option key={oras} value={oras} />
+            ))}
+          </datalist>
+          <FormDescription>
+            {esteBusiness
+              ? "Orașul în care ai terenurile."
+              : "Îl folosim ca să îți arătăm terenurile din apropiere."}
+          </FormDescription>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  );
+}
 
-function PasProfil({ form }: { form: FormularInregistrare }) {
-  const rol = form.watch("role");
+function CampTelefon({ form }: { form: FormularInregistrare }) {
+  const esteBusiness = form.watch("role") === "BUSINESS";
+  return (
+    <FormField
+      control={form.control}
+      name="phone"
+      render={({ field }) => (
+        <FormItem>
+          <FormLabel>Telefon</FormLabel>
+          <FormControl>
+            <Input placeholder="0722 123 456" type="tel" autoComplete="tel" {...field} />
+          </FormControl>
+          <FormDescription>
+            {esteBusiness
+              ? "Apare pe paginile terenurilor tale, ca să te poată suna clienții."
+              : "Proprietarul terenului te sună dacă apare o schimbare la rezervare."}
+          </FormDescription>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  );
+}
+
+function ProfilPersonal({ form }: { form: FormularInregistrare }) {
+  const sporturi = form.watch("sports") ?? [];
+  const intervale = form.watch("preferredTimes") ?? [];
+
+  function comuta<T extends string>(
+    camp: "sports" | "preferredTimes",
+    curente: T[],
+    valoare: T
+  ) {
+    // Citim din formular, nu din randare: două apăsări înainte de următoarea
+    // randare ar porni amândouă de la aceeași listă veche.
+    const acum = (form.getValues(camp) ?? []) as T[];
+    const urmatoare = acum.includes(valoare)
+      ? acum.filter((element) => element !== valoare)
+      : [...acum, valoare];
+    form.setValue(camp, urmatoare as never, { shouldDirty: true });
+  }
+
+  return (
+    <>
+      <CampTelefon form={form} />
+      <CampOras form={form} />
+
+      <FormField
+        control={form.control}
+        name="birthDate"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Data nașterii</FormLabel>
+            <FormControl>
+              <Input type="date" max={ziuaDeAzi()} {...field} />
+            </FormControl>
+            <FormDescription>
+              Ne asigurăm că ai vârsta minimă și îți putem arăta competițiile potrivite.
+            </FormDescription>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        control={form.control}
+        name="skillLevel"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Nivelul tău</FormLabel>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {NIVELURI.map((nivel) => (
+                <button
+                  key={nivel.valoare}
+                  type="button"
+                  aria-pressed={field.value === nivel.valoare}
+                  aria-label={nivel.eticheta}
+                  onClick={() =>
+                    field.onChange(field.value === nivel.valoare ? undefined : nivel.valoare)
+                  }
+                  className={cn(
+                    "rounded-xl border p-2.5 text-left transition-colors",
+                    field.value === nivel.valoare
+                      ? "border-primary bg-primary/5"
+                      : "border-border hover:bg-muted"
+                  )}
+                >
+                  <span className="block text-sm font-medium">{nivel.eticheta}</span>
+                  <span className="block text-xs text-muted-foreground">{nivel.detaliu}</span>
+                </button>
+              ))}
+            </div>
+            <FormDescription>Opțional. Îl poți schimba oricând.</FormDescription>
+          </FormItem>
+        )}
+      />
+
+      <FormItem>
+        <FormLabel>Sporturi preferate</FormLabel>
+        <div className="flex flex-wrap gap-2">
+          {sportOptions.map((sport) => (
+            <Chip
+              key={sport.value}
+              eticheta={sport.label}
+              activ={sporturi.includes(sport.value)}
+              onClick={() => comuta("sports", sporturi, sport.value)}
+            />
+          ))}
+        </div>
+      </FormItem>
+
+      <FormItem>
+        <FormLabel>Când joci de obicei</FormLabel>
+        <div className="flex flex-wrap gap-2">
+          {INTERVALE.map((interval) => (
+            <Chip
+              key={interval.valoare}
+              eticheta={interval.eticheta}
+              activ={intervale.includes(interval.valoare)}
+              onClick={() => comuta("preferredTimes", intervale, interval.valoare)}
+            />
+          ))}
+        </div>
+        <FormDescription>
+          Opțional. Ne ajută să îți arătăm întâi orele în care chiar ai timp.
+        </FormDescription>
+      </FormItem>
+    </>
+  );
+}
+
+function ProfilBusiness({ form }: { form: FormularInregistrare }) {
   const sporturi = form.watch("sports") ?? [];
 
   function comutaSport(sport: SportType) {
-    // Citim valoarea din formular, nu pe cea prinsă la randare: două apăsări
-    // înainte de următoarea randare ar porni amândouă de la aceeași listă
-    // veche, iar a doua ar șterge prima alegere.
-    const curente = form.getValues("sports") ?? [];
-    const urmatoare = curente.includes(sport)
-      ? curente.filter((valoare) => valoare !== sport)
-      : [...curente, sport];
-    form.setValue("sports", urmatoare, { shouldDirty: true });
+    const acum = form.getValues("sports") ?? [];
+    form.setValue(
+      "sports",
+      acum.includes(sport) ? acum.filter((s) => s !== sport) : [...acum, sport],
+      { shouldDirty: true }
+    );
   }
 
   return (
     <>
       <FormField
         control={form.control}
-        name="role"
+        name="companyName"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>Tip cont</FormLabel>
-            <div className="grid gap-2 sm:grid-cols-2">
-              <CardRol
-                activ={field.value === "PERSONAL"}
-                titlu="Personal"
-                descriere="Caut terenuri și rezerv."
-                Icon={User}
-                onClick={() => field.onChange("PERSONAL")}
-              />
-              <CardRol
-                activ={field.value === "BUSINESS"}
-                titlu="Business"
-                descriere="Am terenuri de închiriat."
-                Icon={Building2}
-                onClick={() => field.onChange("BUSINESS")}
-              />
-            </div>
+            <FormLabel>Denumirea firmei</FormLabel>
+            <FormControl>
+              <Input placeholder="Sport Arena SRL" autoComplete="organization" {...field} />
+            </FormControl>
+            <FormDescription>Așa cum apare în actele firmei.</FormDescription>
             <FormMessage />
           </FormItem>
         )}
@@ -378,18 +628,33 @@ function PasProfil({ form }: { form: FormularInregistrare }) {
 
       <FormField
         control={form.control}
-        name="phone"
+        name="taxId"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>Telefon</FormLabel>
+            <FormLabel>Cod fiscal (CUI)</FormLabel>
             <FormControl>
-              <Input placeholder="0722 123 456" type="tel" autoComplete="tel" {...field} />
+              <Input placeholder="RO12345678" inputMode="numeric" {...field} />
             </FormControl>
             <FormDescription>
-              {rol === "BUSINESS"
-                ? "Apare pe paginile terenurilor tale, ca să te poată suna clienții."
-                : "Îl folosește proprietarul terenului dacă apare o schimbare la rezervare."}
+              Îl verificăm după cifra de control, ca o greșeală de tastare să nu ajungă pe facturi.
             </FormDescription>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <CampTelefon form={form} />
+      <CampOras form={form} />
+
+      <FormField
+        control={form.control}
+        name="address"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Adresa sediului</FormLabel>
+            <FormControl>
+              <Input placeholder="Str. Exemplu nr. 10" autoComplete="street-address" {...field} />
+            </FormControl>
             <FormMessage />
           </FormItem>
         )}
@@ -397,76 +662,43 @@ function PasProfil({ form }: { form: FormularInregistrare }) {
 
       <FormField
         control={form.control}
-        name="city"
+        name="website"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>Oraș</FormLabel>
+            <FormLabel>Site (opțional)</FormLabel>
             <FormControl>
-              <Input
-                placeholder="Timișoara"
-                list="orase-inregistrare"
-                autoComplete="address-level2"
-                {...field}
-              />
+              <Input placeholder="terenulmeu.ro" inputMode="url" {...field} />
             </FormControl>
-            <datalist id="orase-inregistrare">
-              {ORASE_ROMANIA.map((oras) => (
-                <option key={oras} value={oras} />
-              ))}
-            </datalist>
-            <FormDescription>
-              {rol === "BUSINESS"
-                ? "Orașul în care ai terenurile."
-                : "Îl folosim ca să îți arătăm terenurile din apropiere."}
-            </FormDescription>
             <FormMessage />
           </FormItem>
         )}
       />
 
-      {rol === "PERSONAL" && (
-        <FormItem>
-          <FormLabel>Sporturi preferate</FormLabel>
-          <div className="flex flex-wrap gap-2">
-            {sportOptions.map((sport) => {
-              const activ = sporturi.includes(sport.value);
-              return (
-                <button
-                  key={sport.value}
-                  type="button"
-                  onClick={() => comutaSport(sport.value)}
-                  aria-pressed={activ}
-                  className={cn(
-                    "flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition-colors",
-                    activ
-                      ? "border-primary bg-primary/10 text-primary font-medium"
-                      : "border-border text-muted-foreground hover:bg-muted"
-                  )}
-                >
-                  {activ && <Check className="h-3.5 w-3.5" />}
-                  {sport.label}
-                </button>
-              );
-            })}
-          </div>
-          <FormDescription>Opțional. Le poți schimba oricând din contul tău.</FormDescription>
-        </FormItem>
-      )}
+      <FormItem>
+        <FormLabel>Ce sporturi se joacă pe terenurile tale</FormLabel>
+        <div className="flex flex-wrap gap-2">
+          {sportOptions.map((sport) => (
+            <Chip
+              key={sport.value}
+              eticheta={sport.label}
+              activ={sporturi.includes(sport.value)}
+              onClick={() => comutaSport(sport.value)}
+            />
+          ))}
+        </div>
+        <FormDescription>Opțional. Terenurile se adaugă în detaliu după înregistrare.</FormDescription>
+      </FormItem>
     </>
   );
 }
 
-function CardRol({
+function Chip({
+  eticheta,
   activ,
-  titlu,
-  descriere,
-  Icon,
   onClick,
 }: {
+  eticheta: string;
   activ: boolean;
-  titlu: string;
-  descriere: string;
-  Icon: typeof User;
   onClick: () => void;
 }) {
   return (
@@ -474,26 +706,22 @@ function CardRol({
       type="button"
       onClick={onClick}
       aria-pressed={activ}
-      aria-label={titlu}
       className={cn(
-        "flex items-start gap-3 rounded-xl border p-3 text-left transition-colors",
-        activ ? "border-primary bg-primary/5" : "border-border hover:bg-muted"
+        "flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition-colors",
+        activ
+          ? "border-primary bg-primary/10 font-medium text-primary"
+          : "border-border text-muted-foreground hover:bg-muted"
       )}
     >
-      <span
-        className={cn(
-          "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
-          activ ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"
-        )}
-      >
-        <Icon className="h-4.5 w-4.5" />
-      </span>
-      <span className="min-w-0">
-        <span className="block text-sm font-medium">{titlu}</span>
-        <span className="block text-xs text-muted-foreground">{descriere}</span>
-      </span>
+      {activ && <Check className="h-3.5 w-3.5" />}
+      {eticheta}
     </button>
   );
+}
+
+/** Limita de sus pentru câmpul de dată — nu te poți naște mâine. */
+function ziuaDeAzi(): string {
+  return new Date().toISOString().slice(0, 10);
 }
 
 // MARK: - Pasul 3
@@ -506,17 +734,53 @@ function PasRezumat({ form }: { form: FormularInregistrare }) {
   // cu un mesaj roșu pentru ceva ce nu ai apucat să faci.
   const [atinsaBifa, setAtinsaBifa] = useState(false);
 
+  const esteBusiness = valori.role === "BUSINESS";
+  const intervale = valori.preferredTimes ?? [];
+
   return (
     <>
       <dl className="divide-y rounded-xl border">
+        <Rand eticheta="Tip cont" valoare={esteBusiness ? "Business" : "Personal"} />
         <Rand eticheta="Nume" valoare={valori.name} />
         <Rand eticheta="Email" valoare={valori.email} />
-        <Rand eticheta="Tip cont" valoare={valori.role === "BUSINESS" ? "Business" : "Personal"} />
         {valori.phone ? <Rand eticheta="Telefon" valoare={valori.phone} /> : null}
         {valori.city ? <Rand eticheta="Oraș" valoare={valori.city} /> : null}
+
+        {esteBusiness ? (
+          <>
+            {valori.companyName ? <Rand eticheta="Firmă" valoare={valori.companyName} /> : null}
+            {valori.taxId ? <Rand eticheta="CUI" valoare={valori.taxId} /> : null}
+            {valori.address ? <Rand eticheta="Adresă" valoare={valori.address} /> : null}
+            {valori.website ? <Rand eticheta="Site" valoare={valori.website} /> : null}
+          </>
+        ) : (
+          <>
+            {valori.birthDate ? (
+              <Rand eticheta="Data nașterii" valoare={dataRomaneste(valori.birthDate)} />
+            ) : null}
+            {valori.skillLevel ? (
+              <Rand
+                eticheta="Nivel"
+                valoare={
+                  NIVELURI.find((nivel) => nivel.valoare === valori.skillLevel)?.eticheta ?? ""
+                }
+              />
+            ) : null}
+            {intervale.length > 0 ? (
+              <Rand
+                eticheta="Când joacă"
+                valoare={intervale
+                  .map((valoare) => INTERVALE.find((i) => i.valoare === valoare)?.eticheta)
+                  .filter(Boolean)
+                  .join(", ")}
+              />
+            ) : null}
+          </>
+        )}
+
         {sporturi.length > 0 ? (
           <Rand
-            eticheta="Sporturi"
+            eticheta={esteBusiness ? "Sporturi oferite" : "Sporturi"}
             valoare={sporturi.map((sport) => sportMeta[sport].label).join(", ")}
           />
         ) : null}
@@ -562,12 +826,45 @@ function PasRezumat({ form }: { form: FormularInregistrare }) {
         )}
       />
 
+      <FormField
+        control={form.control}
+        name="marketingOptIn"
+        render={({ field }) => (
+          <FormItem>
+            <label className="flex cursor-pointer items-start gap-2.5 text-sm">
+              <input
+                type="checkbox"
+                checked={Boolean(field.value)}
+                onChange={(event) => field.onChange(event.target.checked)}
+                className="mt-0.5 h-4 w-4 shrink-0 accent-primary"
+              />
+              <span className="text-muted-foreground">
+                Vreau să primesc pe email terenuri noi și oferte. Consimțământul e separat de
+                termeni și îl poți retrage oricând.
+              </span>
+            </label>
+          </FormItem>
+        )}
+      />
+
       <p className="rounded-lg bg-muted/60 px-3 py-2.5 text-xs text-muted-foreground">
         După ce creezi contul îți trimitem un email de confirmare. Contul se poate folosi
         abia după ce apeși linkul din el.
       </p>
     </>
   );
+}
+
+/** „2001-04-19” → „19 aprilie 2001”, ca rezumatul să se citească firesc. */
+function dataRomaneste(valoare: string): string {
+  const data = new Date(`${valoare}T00:00:00Z`);
+  if (Number.isNaN(data.getTime())) return valoare;
+  return data.toLocaleDateString("ro-RO", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
 }
 
 function Rand({ eticheta, valoare }: { eticheta: string; valoare: string }) {

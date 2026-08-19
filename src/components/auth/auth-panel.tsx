@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
@@ -40,6 +40,8 @@ export function AuthPanel({
   error?: string;
   code?: string;
 }) {
+  const [mod, setMod] = useState(initialMode);
+
   // Trezim baza de date cat utilizatorul isi scrie datele. Fara asta, prima
   // autentificare dupa o pauza astepta ~30-55s pentru pornirea bazei si
   // parea ca butonul nu face nimic.
@@ -62,11 +64,18 @@ export function AuthPanel({
 
       <Card>
         <CardHeader>
-          <CardTitle>{copy[role].title}</CardTitle>
-          <CardDescription>{copy[role].description}</CardDescription>
+          {/* La înregistrare, tipul contului se alege în primul pas al
+              formularului, deci antetul nu poate pretinde că îl știe: spunea
+              „Cont Personal” și după ce alegeai Business. */}
+          <CardTitle>{mod === "register" ? "Cont nou" : copy[role].title}</CardTitle>
+          <CardDescription>
+            {mod === "register"
+              ? "Îți faci cont în patru pași. Poți reveni oricând la pasul dinainte."
+              : copy[role].description}
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue={initialMode}>
+          <Tabs value={mod} onValueChange={(valoare) => setMod(valoare as "login" | "register")}>
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="login">Autentificare</TabsTrigger>
               <TabsTrigger value="register">Înregistrare</TabsTrigger>

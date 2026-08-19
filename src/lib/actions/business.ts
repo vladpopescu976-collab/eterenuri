@@ -5,6 +5,8 @@ import { z } from "zod";
 
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { anuntaRezervare } from "@/lib/emailuri/rezervari";
+import { outsideOpeningHours } from "@/lib/availability";
 import { ActionError, fail, ok, toActionError, type ActionResult } from "@/lib/actions/result";
 import { fieldEditSchema, fieldSchema, fieldUpdateSchema } from "@/lib/validations/field";
 import { cheieOras, normalizeazaOras } from "@/lib/orase";
@@ -40,6 +42,7 @@ export async function approveBooking(bookingId: string): Promise<ActionResult> {
     const session = await requireBusinessSession();
     await assertOwnsBooking(bookingId, session.user.id);
     await prisma.booking.update({ where: { id: bookingId }, data: { status: "CONFIRMED" } });
+    anuntaRezervare(bookingId, "aprobata");
     revalidateDashboard();
     return ok();
   } catch (error) {
@@ -52,6 +55,7 @@ export async function rejectBooking(bookingId: string): Promise<ActionResult> {
     const session = await requireBusinessSession();
     await assertOwnsBooking(bookingId, session.user.id);
     await prisma.booking.update({ where: { id: bookingId }, data: { status: "REJECTED" } });
+    anuntaRezervare(bookingId, "respinsa");
     revalidateDashboard();
     return ok();
   } catch (error) {
@@ -84,6 +88,19 @@ export async function proposeReschedule(
       return fail("Ora de sfârșit trebuie să fie după ora de start.");
     }
 
+    // Propunerea devine rezervare dacă e acceptată, deci trebuie să respecte
+    // programul la fel ca orice altă rezervare.
+    const field = await prisma.field.findUnique({
+      where: { id: booking.fieldId },
+      select: { openingHour: true, closingHour: true },
+    });
+    if (field) {
+      const inAfara = outsideOpeningHours(
+        proposedStartTime, proposedEndTime, field.openingHour, field.closingHour
+      );
+      if (inAfara) return fail(inAfara);
+    }
+
     await prisma.booking.update({
       where: { id: booking.id },
       data: {
@@ -93,6 +110,7 @@ export async function proposeReschedule(
         rescheduleNote: data.note?.trim() || null,
       },
     });
+    anuntaRezervare(booking.id, "mutare-propusa");
     revalidateDashboard();
     return ok();
   } catch (error) {

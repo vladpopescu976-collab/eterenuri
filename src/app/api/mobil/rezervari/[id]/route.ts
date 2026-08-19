@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { prisma } from "@/lib/prisma";
 import { outsideOpeningHours } from "@/lib/availability";
+import { anuntaRezervare, type EvenimentRezervare } from "@/lib/emailuri/rezervari";
 import { cereAutentificare, eroare, eroareNeasteptata, raspuns } from "@/lib/api/raspuns";
 import { serializeazaRezervare } from "@/lib/api/serializare";
 
@@ -63,6 +64,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     const incheiata = rezervare.endTime < new Date();
 
+    // Ce email pleacă după acțiune. Rămâne null dacă acțiunea nu anunță pe
+    // nimeni sau dacă s-a întors mai devreme cu o eroare.
+    let anunt: EvenimentRezervare | null = null;
+
     switch (date.actiune) {
       case "anuleaza": {
         if (rezervare.status === "CANCELLED") return eroare("Rezervarea este deja anulată.", 409);
@@ -72,6 +77,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
           where: { id },
           data: { status: "CANCELLED", proposedStartTime: null, proposedEndTime: null },
         });
+        anunt = "anulata-de-client";
         break;
       }
 
@@ -137,6 +143,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
           }
           throw err;
         }
+        anunt = "mutata-de-client";
         break;
       }
 
@@ -166,6 +173,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
           }
           throw err;
         }
+        anunt = "mutare-acceptata";
         break;
       }
 
@@ -177,16 +185,19 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
           where: { id },
           data: { status: "REJECTED", proposedStartTime: null, proposedEndTime: null },
         });
+        anunt = "mutare-refuzata";
         break;
       }
 
       case "aproba": {
         await prisma.booking.update({ where: { id }, data: { status: "CONFIRMED" } });
+        anunt = "aprobata";
         break;
       }
 
       case "respinge": {
         await prisma.booking.update({ where: { id }, data: { status: "REJECTED" } });
+        anunt = "respinsa";
         break;
       }
 
@@ -194,6 +205,14 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         const inceput = new Date(date.inceput);
         const sfarsit = new Date(date.sfarsit);
         if (sfarsit <= inceput) return eroare("Ora de sfârșit trebuie să fie după ora de start.", 422);
+
+        // Propunerea devine rezervare dacă e acceptată, deci trebuie să
+        // respecte programul la fel ca orice altă rezervare.
+        const inAfaraPropunerii = outsideOpeningHours(
+          inceput, sfarsit, rezervare.field.openingHour, rezervare.field.closingHour
+        );
+        if (inAfaraPropunerii) return eroare(inAfaraPropunerii, 422);
+
         await prisma.booking.update({
           where: { id },
           data: {
@@ -203,9 +222,12 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
             rescheduleNote: date.nota?.trim() || null,
           },
         });
+        anunt = "mutare-propusa";
         break;
       }
     }
+
+    if (anunt) anuntaRezervare(id, anunt);
 
     const actualizata = await prisma.booking.findUnique({ where: { id }, include: includeStandard });
     return raspuns(actualizata ? serializeazaRezervare(actualizata) : null);

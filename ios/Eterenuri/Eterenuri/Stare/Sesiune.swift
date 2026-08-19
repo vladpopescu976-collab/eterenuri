@@ -58,6 +58,10 @@ final class Sesiune {
         email: String,
         parola: String,
         telefon: String,
+        oras: String,
+        numeFirma: String,
+        cui: String,
+        adresaFirmei: String,
         rol: Rol
     ) async throws -> Bool {
         struct Corp: Encodable {
@@ -65,6 +69,10 @@ final class Sesiune {
             let email: String
             let password: String
             let phone: String?
+            let city: String?
+            let companyName: String?
+            let taxId: String?
+            let address: String?
             let role: String
         }
         struct Raspuns: Decodable {
@@ -79,10 +87,37 @@ final class Sesiune {
                 email: email,
                 password: parola,
                 phone: telefon.isEmpty ? nil : telefon,
+                city: oras.isEmpty ? nil : oras,
+                // Datele firmei se trimit doar de pe contul Business; serverul
+                // le cere obligatoriu acolo și le ignoră în rest.
+                companyName: rol == .business && !numeFirma.isEmpty ? numeFirma : nil,
+                taxId: rol == .business && !cui.isEmpty ? cui : nil,
+                address: rol == .business && !adresaFirmei.isEmpty ? adresaFirmei : nil,
                 role: rol.rawValue
             )
         )
         return raspuns.emailTrimis
+    }
+
+    /// Cere pe email un link de schimbare a parolei. Parola nouă se alege pe
+    /// site, unde duce linkul — aici nu ținem un al doilea formular pentru
+    /// aceleași reguli.
+    func cereParolaNoua(email: String) async throws {
+        struct Corp: Encodable { let email: String }
+        struct Raspuns: Decodable { let trimis: Bool }
+        let _: Raspuns = try await ApiClient.shared.cere(
+            "auth/parola", metoda: "POST", corp: Corp(email: email), ca: Raspuns.self
+        )
+    }
+
+    /// Șterge definitiv contul, după confirmarea parolei.
+    func stergeContul(parola: String) async throws {
+        struct Corp: Encodable { let parola: String }
+        struct Raspuns: Decodable { let sters: Bool }
+        let _: Raspuns = try await ApiClient.shared.cere(
+            "eu", metoda: "DELETE", corp: Corp(parola: parola), ca: Raspuns.self
+        )
+        await deconecteaza()
     }
 
     /// Cere un link nou de confirmare pentru o adresă.
