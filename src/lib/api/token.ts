@@ -6,8 +6,8 @@ import type { Role } from "@prisma/client";
 // O aplicație nativă are nevoie de ceva ce poate trimite singură în header, așa
 // că folosim un JWT semnat cu același secret, trimis ca `Authorization: Bearer`.
 
-const ISSUER = "eterenuri";
-const AUDIENCE = "eterenuri-mobil";
+const ISSUER = "scorer";
+const AUDIENCE = "scorer-mobil";
 const DURATA = "30d";
 
 function secret() {

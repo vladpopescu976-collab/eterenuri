@@ -7,13 +7,13 @@
 	objects = {
 
 /* Begin PBXFileReference section */
-		91EE962102F24BDBB845D6F6 /* Eterenuri.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Eterenuri.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		91EE962102F24BDBB845D6F6 /* Scorer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Scorer.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		44846608927A45AB97C6BB0D /* Eterenuri */ = {
+		44846608927A45AB97C6BB0D /* Scorer */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = Eterenuri;
+			path = Scorer;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -32,7 +32,7 @@
 		5C038D161206426389CFB425 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				91EE962102F24BDBB845D6F6 /* Eterenuri.app */,
+				91EE962102F24BDBB845D6F6 /* Scorer.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -40,7 +40,7 @@
 		7C9D307B5CA840B6811005C4 = {
 			isa = PBXGroup;
 			children = (
-				44846608927A45AB97C6BB0D /* Eterenuri */,
+				44846608927A45AB97C6BB0D /* Scorer */,
 				5C038D161206426389CFB425 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -48,9 +48,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		3B86675CEF4948FA837EF1B9 /* Eterenuri */ = {
+		3B86675CEF4948FA837EF1B9 /* Scorer */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = CA3109B5408A44DFBB8D03BA /* Build configuration list for PBXNativeTarget "Eterenuri" */;
+			buildConfigurationList = CA3109B5408A44DFBB8D03BA /* Build configuration list for PBXNativeTarget "Scorer" */;
 			buildPhases = (
 				18603766813C429E83D36678 /* Sources */,
 				3946D85B73AA413498B9E8B0 /* Frameworks */,
@@ -61,11 +61,11 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				44846608927A45AB97C6BB0D /* Eterenuri */,
+				44846608927A45AB97C6BB0D /* Scorer */,
 			);
-			name = Eterenuri;
-			productName = Eterenuri;
-			productReference = 91EE962102F24BDBB845D6F6 /* Eterenuri.app */;
+			name = Scorer;
+			productName = Scorer;
+			productReference = 91EE962102F24BDBB845D6F6 /* Scorer.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -83,7 +83,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 24BEDDBA78C6480385533825 /* Build configuration list for PBXProject "Eterenuri" */;
+			buildConfigurationList = 24BEDDBA78C6480385533825 /* Build configuration list for PBXProject "Scorer" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -98,7 +98,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				3B86675CEF4948FA837EF1B9 /* Eterenuri */,
+				3B86675CEF4948FA837EF1B9 /* Scorer */,
 			);
 		};
 /* End PBXProject section */
@@ -141,7 +141,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = ro.eterenuri.app;
+				PRODUCT_BUNDLE_IDENTIFIER = ro.scorer.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 6.0;
@@ -166,7 +166,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = ro.eterenuri.app;
+				PRODUCT_BUNDLE_IDENTIFIER = ro.scorer.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 6.0;
@@ -219,7 +219,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		24BEDDBA78C6480385533825 /* Build configuration list for PBXProject "Eterenuri" */ = {
+		24BEDDBA78C6480385533825 /* Build configuration list for PBXProject "Scorer" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				76133BEBE1AD442A998713A1 /* Debug */,
@@ -228,7 +228,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		CA3109B5408A44DFBB8D03BA /* Build configuration list for PBXNativeTarget "Eterenuri" */ = {
+		CA3109B5408A44DFBB8D03BA /* Build configuration list for PBXNativeTarget "Scorer" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				2F242A2A91BD45A983255CB5 /* Debug */,

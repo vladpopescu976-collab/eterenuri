@@ -100,7 +100,7 @@ export function Navbar() {
           >
             E
           </motion.span>
-          <span className="text-lg font-semibold tracking-tight">Eterenuri</span>
+          <span className="text-lg font-semibold tracking-tight">Scorer</span>
         </Link>
 
         <nav className="hidden items-center gap-1 text-sm font-medium md:flex">

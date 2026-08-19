@@ -16,7 +16,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params;
   const pagina = PAGINI[slug];
-  return { title: pagina ? `${pagina.titlu} — Eterenuri` : "Eterenuri" };
+  return { title: pagina ? `${pagina.titlu} — Scorer` : "Scorer" };
 }
 
 export default async function PaginaStatica({ params }: { params: Promise<{ slug: string }> }) {

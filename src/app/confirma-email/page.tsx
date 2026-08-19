@@ -8,7 +8,7 @@ import { RetrimiteConfirmarea } from "@/components/auth/retrimite-confirmarea";
 import { confirmaToken } from "@/lib/verificare-email";
 
 export const metadata: Metadata = {
-  title: "Confirmare cont — Eterenuri",
+  title: "Confirmare cont — Scorer",
 };
 
 // Tokenul se citeste si se sterge din baza de date la fiecare deschidere.

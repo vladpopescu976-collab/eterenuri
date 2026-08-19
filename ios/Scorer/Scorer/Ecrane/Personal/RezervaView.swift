@@ -65,7 +65,7 @@ struct RezervaView: View {
                 oraSfarsit = oraInitiala + 1
                 #if DEBUG
                 // Durata preselectată, tot pentru verificări automate.
-                if let text = ProcessInfo.processInfo.environment["ETERENURI_DURATA"],
+                if let text = ProcessInfo.processInfo.environment["SCORER_DURATA"],
                    let durata = Int(text) {
                     oraSfarsit = oraInitiala + durata
                 }

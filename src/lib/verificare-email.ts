@@ -37,7 +37,7 @@ function sablon(nume: string, link: string) {
   <body style="margin:0;padding:24px;background:#f4f5f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;color:#111827">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;margin:0 auto;background:#ffffff;border-radius:16px;padding:32px">
       <tr><td>
-        <p style="margin:0 0 4px;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:#16a34a;font-weight:600">Eterenuri</p>
+        <p style="margin:0 0 4px;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:#16a34a;font-weight:600">Scorer</p>
         <h1 style="margin:0 0 16px;font-size:22px;line-height:1.3">Confirmă-ți adresa de email</h1>
         <p style="margin:0 0 12px;font-size:15px;line-height:1.6">Bună, ${nume}!</p>
         <p style="margin:0 0 24px;font-size:15px;line-height:1.6">
@@ -61,7 +61,7 @@ function sablon(nume: string, link: string) {
 
   const text = `Bună, ${nume}!
 
-Confirmă-ți adresa de email ca să îți poți folosi contul Eterenuri:
+Confirmă-ți adresa de email ca să îți poți folosi contul Scorer:
 ${link}
 
 Linkul este valabil ${VALABIL_ORE} de ore. Dacă nu tu ai cerut acest cont, ignoră mesajul.`;
@@ -81,7 +81,7 @@ export async function trimiteConfirmarea(user: {
 
   return trimiteEmail({
     catre: user.email,
-    subiect: "Confirmă-ți contul Eterenuri",
+    subiect: "Confirmă-ți contul Scorer",
     html,
     text,
   });

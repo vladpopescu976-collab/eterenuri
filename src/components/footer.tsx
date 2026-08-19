@@ -37,7 +37,7 @@ export function Footer() {
               <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground">
                 E
               </span>
-              <span className="text-lg font-semibold tracking-tight">Eterenuri</span>
+              <span className="text-lg font-semibold tracking-tight">Scorer</span>
             </Link>
             <p className="max-w-xs text-sm text-muted-foreground">
               Platforma prin care găsești și rezervi terenuri sportive rapid, sau îți
@@ -45,7 +45,7 @@ export function Footer() {
             </p>
             <div className="flex items-center gap-2 pt-1">
               <a
-                href="mailto:contact@eterenuri.ro"
+                href="mailto:contact@scorer.ro"
                 aria-label="Email"
                 className="flex h-9 w-9 items-center justify-center rounded-full border text-muted-foreground transition-colors hover:border-primary hover:text-primary"
               >
@@ -74,7 +74,7 @@ export function Footer() {
         </div>
 
         <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t pt-6 text-sm text-muted-foreground sm:flex-row">
-          <p>&copy; {new Date().getFullYear()} Eterenuri. Toate drepturile rezervate.</p>
+          <p>&copy; {new Date().getFullYear()} Scorer. Toate drepturile rezervate.</p>
           <p>Făcut cu grijă pentru comunitatea sportivă din România.</p>
         </div>
       </div>

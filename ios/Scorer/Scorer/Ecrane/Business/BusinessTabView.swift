@@ -7,7 +7,7 @@ struct BusinessTabView: View {
     /// pentru verificări automate.
     private static var tabInitial: String {
         #if DEBUG
-        ProcessInfo.processInfo.environment["ETERENURI_TAB"] ?? "ansamblu"
+        ProcessInfo.processInfo.environment["SCORER_TAB"] ?? "ansamblu"
         #else
         "ansamblu"
         #endif

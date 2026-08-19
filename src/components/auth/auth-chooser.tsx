@@ -24,7 +24,7 @@ export function AuthChooser() {
   return (
     <div className="w-full max-w-md space-y-6">
       <div className="space-y-2 text-center">
-        <h1 className="text-2xl font-semibold tracking-tight">Bine ai venit pe Eterenuri</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Bine ai venit pe Scorer</h1>
         <p className="text-muted-foreground">
           Alege tipul de cont pentru a continua cu autentificarea sau înregistrarea.
         </p>

@@ -134,9 +134,9 @@ actor ApiClient {
             // real, deci mesajul le acoperă pe amândouă.
             return "Nu răspunde nimic la \(adresa). Verifică dacă serverul rulează („npm run dev”). Pe un telefon real, această adresă înseamnă telefonul însuși — pune adresa calculatorului din rețea la „Adresa serverului”."
         case .cannotConnectToHost:
-            return "Serverul de la \(adresa) nu răspunde. Pornește-l cu „npm run dev” sau schimbă EterenuriApiURL din Info.plist."
+            return "Serverul de la \(adresa) nu răspunde. Pornește-l cu „npm run dev” sau schimbă ScorerApiURL din Info.plist."
         case .cannotFindHost:
-            return "Adresa \(adresa) nu poate fi găsită. Verifică EterenuriApiURL din Info.plist."
+            return "Adresa \(adresa) nu poate fi găsită. Verifică ScorerApiURL din Info.plist."
         case .timedOut:
             return "Serverul de la \(adresa) nu a răspuns la timp. Prima cerere după o pauză poate dura, încearcă din nou."
         case .notConnectedToInternet, .networkConnectionLost:

@@ -50,7 +50,7 @@ export async function cereResetarea(email: string): Promise<RezultatEmail> {
     incheiere: `Linkul este valabil ${VALABIL_MINUTE} de minute și poate fi folosit o singură dată. Dacă nu tu ai cerut schimbarea, ignoră mesajul — parola rămâne cea veche.`,
   });
 
-  return trimiteEmail({ catre: user.email, subiect: "Schimbarea parolei — Eterenuri", html, text });
+  return trimiteEmail({ catre: user.email, subiect: "Schimbarea parolei — Scorer", html, text });
 }
 
 export type RezultatResetare =

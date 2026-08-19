@@ -45,7 +45,7 @@ export function sablon(continut: {
   <body style="margin:0;padding:24px;background:#f4f5f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;color:#111827">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;margin:0 auto;background:#ffffff;border-radius:16px;padding:32px">
       <tr><td>
-        <p style="margin:0 0 4px;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:#16a34a;font-weight:600">Eterenuri</p>
+        <p style="margin:0 0 4px;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:#16a34a;font-weight:600">Scorer</p>
         <h1 style="margin:0 0 16px;font-size:22px;line-height:1.3">${escapa(titlu)}</h1>
         ${salut ? `<p style="margin:0 0 12px;font-size:15px;line-height:1.6">Bună, ${escapa(salut)}!</p>` : ""}
         ${paragrafe.map((p) => `<p style="margin:0 0 16px;font-size:15px;line-height:1.6">${escapa(p)}</p>`).join("")}
@@ -53,7 +53,7 @@ export function sablon(continut: {
         ${htmlActiune}
         <hr style="border:none;border-top:1px solid #e5e7eb;margin:0 0 16px" />
         <p style="margin:0;font-size:13px;color:#6b7280;line-height:1.6">
-          ${incheiere ? `${escapa(incheiere)}<br /><br />` : ""}Ai primit acest mesaj pentru că ai un cont pe <a href="${baza}" style="color:#16a34a">Eterenuri</a>.
+          ${incheiere ? `${escapa(incheiere)}<br /><br />` : ""}Ai primit acest mesaj pentru că ai un cont pe <a href="${baza}" style="color:#16a34a">Scorer</a>.
         </p>
       </td></tr>
     </table>

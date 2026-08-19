@@ -8,7 +8,7 @@ import { FormularParolaNoua } from "@/components/auth/formular-parola-noua";
 import { tokenulEsteValabil } from "@/lib/emailuri/parola";
 
 export const metadata: Metadata = {
-  title: "Parolă nouă — Eterenuri",
+  title: "Parolă nouă — Scorer",
 };
 
 export const dynamic = "force-dynamic";

@@ -1,4 +1,4 @@
-# Eterenuri — aplicația iOS
+# Scorer — aplicația iOS
 
 Aplicație nativă SwiftUI care folosește același backend ca site-ul, prin API-ul
 JSON de sub `/api/mobil`.
@@ -6,7 +6,7 @@ JSON de sub `/api/mobil`.
 ## Cum o pornești
 
 1. Pornește backendul: `npm run dev` în rădăcina proiectului.
-2. Deschide `ios/Eterenuri/Eterenuri.xcodeproj` în Xcode.
+2. Deschide `ios/Scorer/Scorer.xcodeproj` în Xcode.
 3. Alege un simulator de iPhone și rulează (⌘R).
 
 Adresa implicită este `http://127.0.0.1:3000` și merge direct în simulator.
@@ -25,7 +25,7 @@ calculatorului în rețea — cea afișată de `npm run dev` la „Network” �
 „Testează conexiunea”.
 
 Adresa se schimbă la fiecare rețea nouă, de aceea e o setare și nu o constantă.
-Valoarea implicită vine din `EterenuriApiURL` în `ios/Eterenuri/Info.plist`.
+Valoarea implicită vine din `ScorerApiURL` în `ios/Scorer/Info.plist`.
 
 La prima conectare, iOS cere permisiunea „Rețea locală” — trebuie acceptată,
 altfel cererile sunt blocate în tăcere. Calculatorul și telefonul trebuie să fie
@@ -36,28 +36,28 @@ din Info.plist poate fi scoasă.
 
 ## Testare
 
-Build-urile de dezvoltare acceptă variabila `ETERENURI_TOKEN`, care pornește
+Build-urile de dezvoltare acceptă variabila `SCORER_TOKEN`, care pornește
 aplicația deja conectată — utilă pentru verificări automate, fără a trece prin
 tastatură. Nu există în build-ul final.
 
 ```bash
-SIMCTL_CHILD_ETERENURI_TOKEN="<token>" xcrun simctl launch booted ro.eterenuri.app
+SIMCTL_CHILD_SCORER_TOKEN="<token>" xcrun simctl launch booted ro.scorer.app
 ```
 
 Alte variabile, tot doar în dezvoltare:
 
 | Variabilă | Ce face |
 |---|---|
-| `ETERENURI_TOKEN` | pornește aplicația conectată |
-| `ETERENURI_TAB` | ecranul de start pentru Business (`calendar`, `rezervari`, …) |
-| `ETERENURI_FILTRE=1` | deschide panoul de filtre |
-| `ETERENURI_REZERVA=<id teren>` | deschide direct ecranul de rezervare |
-| `ETERENURI_ORA=<oră>` | preselectează ora de început |
+| `SCORER_TOKEN` | pornește aplicația conectată |
+| `SCORER_TAB` | ecranul de start pentru Business (`calendar`, `rezervari`, …) |
+| `SCORER_FILTRE=1` | deschide panoul de filtre |
+| `SCORER_REZERVA=<id teren>` | deschide direct ecranul de rezervare |
+| `SCORER_ORA=<oră>` | preselectează ora de început |
 
 ## Structura
 
 ```
-Eterenuri/
+Scorer/
   Config.swift          adresa backendului
   Retea/
     Modele.swift        structurile întoarse de API
@@ -72,7 +72,7 @@ Eterenuri/
 ```
 
 Proiectul folosește un *synchronized folder group*, deci fișierele Swift noi
-puse în `Eterenuri/` intră automat în build — nu trebuie adăugate manual.
+puse în `Scorer/` intră automat în build — nu trebuie adăugate manual.
 
 ## Autentificarea
 

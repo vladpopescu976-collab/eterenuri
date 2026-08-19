@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Eterenuri — Închiriază terenuri sportive",
+  title: "Scorer — Închiriază terenuri sportive",
   description:
     "Platforma prin care găsești și rezervi terenuri sportive rapid, sau îți administrezi propriile terenuri.",
 };

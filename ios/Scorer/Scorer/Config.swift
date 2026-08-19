@@ -1,11 +1,11 @@
 import Foundation
 
 enum Config {
-    private static let cheieServer = "eterenuri.adresaServer"
+    private static let cheieServer = "scorer.adresaServer"
 
     /// Adresa scrisă în Info.plist, folosită până când utilizatorul pune alta.
     private static var adresaImplicita: String {
-        let dinPlist = Bundle.main.object(forInfoDictionaryKey: "EterenuriApiURL") as? String
+        let dinPlist = Bundle.main.object(forInfoDictionaryKey: "ScorerApiURL") as? String
         return dinPlist?.isEmpty == false ? dinPlist! : "http://127.0.0.1:3000"
     }
 

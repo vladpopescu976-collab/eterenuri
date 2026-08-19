@@ -71,12 +71,12 @@ struct CalendarView: View {
             await incarca()
             #if DEBUG
             // Deschide o anumită zi („2026-08-19”), pentru verificări automate.
-            if let text = ProcessInfo.processInfo.environment["ETERENURI_ZI"],
+            if let text = ProcessInfo.processInfo.environment["SCORER_ZI"],
                let data = Self.dinText(text) {
                 ziAleasa = data
                 inceputSaptamana = Self.startulSaptamanii(data)
             }
-            if ProcessInfo.processInfo.environment["ETERENURI_MOD"] == "saptamana" {
+            if ProcessInfo.processInfo.environment["SCORER_MOD"] == "saptamana" {
                 mod = .saptamana
             }
             #endif

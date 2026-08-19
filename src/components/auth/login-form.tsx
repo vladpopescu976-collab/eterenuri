@@ -29,7 +29,7 @@ import type { Role } from "@prisma/client";
  */
 function tineMinteTipul(role: Role) {
   const valoare = role === "BUSINESS" ? "business" : "personal";
-  document.cookie = `eterenuri_tip=${valoare}; path=/; max-age=900; samesite=lax`;
+  document.cookie = `scorer_tip=${valoare}; path=/; max-age=900; samesite=lax`;
 }
 
 export function LoginForm({

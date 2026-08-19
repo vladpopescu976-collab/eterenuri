@@ -6,7 +6,7 @@ import { AuthChooser } from "@/components/auth/auth-chooser";
 import { AuthPanel } from "@/components/auth/auth-panel";
 
 export const metadata: Metadata = {
-  title: "Autentificare — Eterenuri",
+  title: "Autentificare — Scorer",
 };
 
 function parseRole(value: string | undefined): Role | null {
@@ -26,7 +26,7 @@ export default async function AutentificarePage({
   // cu ?error=..., dar fara ?tip=. Fara linia urmatoare am arata alegerea de
   // rol si mesajul de eroare nu s-ar mai vedea nicaieri. Formularul lasa
   // ultimul tip ales intr-un cookie tocmai pentru cazul asta.
-  const dinCookie = error ? (await cookies()).get("eterenuri_tip")?.value : undefined;
+  const dinCookie = error ? (await cookies()).get("scorer_tip")?.value : undefined;
   const role = parseRole(tip) ?? parseRole(dinCookie);
 
   return (

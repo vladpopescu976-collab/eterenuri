@@ -20,7 +20,7 @@ import { cheieOras, normalizeazaOras } from "@/lib/orase";
 export const maxDuration = 60;
 
 export const metadata: Metadata = {
-  title: "Caută terenuri — Eterenuri",
+  title: "Caută terenuri — Scorer",
 };
 
 type SearchParams = { sport?: string; oras?: string; pretMax?: string; data?: string };

@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { ZonaPericuloasa } from "@/components/cont/zona-periculoasa";
 import { sportMeta } from "@/lib/sports";
 
-export const metadata: Metadata = { title: "Contul meu — Eterenuri" };
+export const metadata: Metadata = { title: "Contul meu — Scorer" };
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;

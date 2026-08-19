@@ -13,7 +13,7 @@ import { FieldCard } from "@/components/field-card";
 export const maxDuration = 60;
 
 export const metadata: Metadata = {
-  title: "Terenurile mele favorite — Eterenuri",
+  title: "Terenurile mele favorite — Scorer",
 };
 
 export default async function FavoritePage() {

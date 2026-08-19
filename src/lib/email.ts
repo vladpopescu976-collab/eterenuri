@@ -9,7 +9,7 @@ const resend = cheie ? new Resend(cheie) : null;
 
 // Cu „onboarding@resend.dev” Resend livrează doar către adresa contului.
 // Pentru utilizatori reali e nevoie de un domeniu verificat în Resend.
-const expeditor = process.env.EMAIL_FROM?.trim() || "Eterenuri <onboarding@resend.dev>";
+const expeditor = process.env.EMAIL_FROM?.trim() || "Scorer <onboarding@resend.dev>";
 
 // Id-ul vine de la Resend și e singurul fir prin care se poate urmări un
 // mesaj mai târziu („chiar a plecat?”), deci îl păstrăm în jurnal.

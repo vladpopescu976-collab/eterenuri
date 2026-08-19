@@ -51,7 +51,7 @@ private struct AlegereRol: View {
                 Image(systemName: "sportscourt.fill")
                     .font(.system(size: 44))
                     .foregroundStyle(Tema.accent)
-                Text("Eterenuri")
+                Text("Scorer")
                     .font(.largeTitle.bold())
                 Text("Închiriază terenuri sportive în câteva secunde.")
                     .font(.subheadline)
@@ -340,7 +340,7 @@ private struct FormularAutentificare: View {
                     }
                     if modInregistrare {
                         // Acceptarea prin acțiune, notată pe server ca dată.
-                        Text("Creând contul accepți termenii și condițiile și politica de confidențialitate, disponibile pe eterenuri.ro.")
+                        Text("Creând contul accepți termenii și condițiile și politica de confidențialitate, disponibile pe scorer.ro.")
                     }
                 }
             }

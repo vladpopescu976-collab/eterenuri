@@ -43,7 +43,7 @@ struct CautaTerenuriView: View {
             await incarca()
             #if DEBUG
             // Deschide panoul de filtre la pornire, pentru verificări automate.
-            if ProcessInfo.processInfo.environment["ETERENURI_FILTRE"] == "1" {
+            if ProcessInfo.processInfo.environment["SCORER_FILTRE"] == "1" {
                 arataFiltre = true
             }
             #endif

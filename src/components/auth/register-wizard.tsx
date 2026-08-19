@@ -43,7 +43,7 @@ import { cn } from "@/lib/utils";
 import type { Role, SportType } from "@prisma/client";
 
 const PASI = [
-  { titlu: "Tipul contului", descriere: "Ce faci pe Eterenuri: joci sau închiriezi?" },
+  { titlu: "Tipul contului", descriere: "Ce faci pe Scorer: joci sau închiriezi?" },
   { titlu: "Date de bază", descriere: "Cum te cheamă și cum intri în cont." },
   { titlu: "Profil", descriere: "Detaliile de care avem nevoie ca să funcționeze rezervările." },
   { titlu: "Confirmare", descriere: "Verifică datele și creează contul." },

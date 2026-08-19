@@ -50,7 +50,7 @@ export function DashboardShell({
             E
           </div>
           <div className="min-w-0 leading-tight">
-            <p className="truncate text-[14px] font-semibold">Eterenuri</p>
+            <p className="truncate text-[14px] font-semibold">Scorer</p>
             <p className="truncate text-[11.5px] text-muted-foreground">Panou Business</p>
           </div>
         </div>

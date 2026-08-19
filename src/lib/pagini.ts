@@ -25,9 +25,9 @@ export const PAGINI: Record<string, Pagina> = {
     titlu: "Despre noi",
     sectiuni: [
       {
-        titlu: "Ce este Eterenuri",
+        titlu: "Ce este Scorer",
         paragrafe: [
-          "Eterenuri este o platformă prin care găsești terenuri sportive libere și le rezervi direct, fără telefoane și mesaje.",
+          "Scorer este o platformă prin care găsești terenuri sportive libere și le rezervi direct, fără telefoane și mesaje.",
           "Proprietarii de baze sportive își publică terenurile, își văd orarul într-un singur loc și răspund cererilor de rezervare.",
         ],
       },
@@ -56,7 +56,7 @@ export const PAGINI: Record<string, Pagina> = {
       {
         titlu: "Scrie-ne",
         paragrafe: [
-          "Pentru întrebări, probleme tehnice sau propuneri, scrie la contact@eterenuri.ro. Răspundem în cel mult două zile lucrătoare.",
+          "Pentru întrebări, probleme tehnice sau propuneri, scrie la contact@scorer.ro. Răspundem în cel mult două zile lucrătoare.",
         ],
       },
       {
@@ -81,8 +81,8 @@ export const PAGINI: Record<string, Pagina> = {
       {
         titlu: "1. Ce este acest serviciu",
         paragrafe: [
-          "Eterenuri este o platformă care pune în legătură persoane care caută terenuri sportive cu proprietarii acestora.",
-          "Eterenuri nu deține și nu administrează terenurile publicate. Contractul de închiriere se încheie între tine și proprietarul terenului.",
+          "Scorer este o platformă care pune în legătură persoane care caută terenuri sportive cu proprietarii acestora.",
+          "Scorer nu deține și nu administrează terenurile publicate. Contractul de închiriere se încheie între tine și proprietarul terenului.",
         ],
       },
       {
@@ -178,7 +178,7 @@ export const PAGINI: Record<string, Pagina> = {
       {
         titlu: "Drepturile tale",
         paragrafe: [
-          "Poți cere oricând să vezi ce date avem despre tine, să le corectezi sau să le ștergem. Scrie la contact@eterenuri.ro.",
+          "Poți cere oricând să vezi ce date avem despre tine, să le corectezi sau să le ștergem. Scrie la contact@scorer.ro.",
           "Ai dreptul să depui o plângere la Autoritatea Națională de Supraveghere a Prelucrării Datelor cu Caracter Personal.",
         ],
       },

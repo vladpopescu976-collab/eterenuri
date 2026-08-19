@@ -4,7 +4,7 @@ struct PersonalTabView: View {
     #if DEBUG
     /// Deschide direct rezervarea unui teren, pentru verificări automate.
     @State private var terenDebug: String? =
-        ProcessInfo.processInfo.environment["ETERENURI_REZERVA"]
+        ProcessInfo.processInfo.environment["SCORER_REZERVA"]
     @State private var terenIncarcat: Teren?
     #endif
 
@@ -32,7 +32,7 @@ struct PersonalTabView: View {
                 RezervaView(
                     teren: teren,
                     ziInitiala: Calendar.current.date(byAdding: .day, value: 1, to: Date()),
-                    oraInitiala: ProcessInfo.processInfo.environment["ETERENURI_ORA"].flatMap(Int.init)
+                    oraInitiala: ProcessInfo.processInfo.environment["SCORER_ORA"].flatMap(Int.init)
                 ) {}
             }
         }

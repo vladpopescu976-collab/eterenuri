@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct EterenuriApp: App {
+struct ScorerApp: App {
     @State private var sesiune = Sesiune()
 
     var body: some Scene {

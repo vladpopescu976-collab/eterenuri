@@ -12,7 +12,7 @@ final class Sesiune {
     var esteConectat: Bool { utilizator != nil }
     var esteBusiness: Bool { utilizator?.rol == .business }
 
-    private let cheieToken = "eterenuri.token"
+    private let cheieToken = "scorer.token"
 
     func porneste() async {
         defer { seIncarca = false }
@@ -20,7 +20,7 @@ final class Sesiune {
         #if DEBUG
         // Cârlig pentru testare automată: permite pornirea aplicației deja
         // conectată, fără a trece prin tastatură. Nu există în build-ul final.
-        if let dinMediu = ProcessInfo.processInfo.environment["ETERENURI_TOKEN"], !dinMediu.isEmpty {
+        if let dinMediu = ProcessInfo.processInfo.environment["SCORER_TOKEN"], !dinMediu.isEmpty {
             Keychain.scrie(cheieToken, valoare: dinMediu)
         }
         #endif
@@ -143,7 +143,7 @@ enum Keychain {
     private static func interogare(_ cheie: String) -> [String: Any] {
         [
             kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: "ro.eterenuri.app",
+            kSecAttrService as String: "ro.scorer.app",
             kSecAttrAccount as String: cheie,
         ]
     }

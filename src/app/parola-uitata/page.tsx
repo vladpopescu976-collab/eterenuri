@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { FormularParolaUitata } from "@/components/auth/formular-parola-uitata";
 
 export const metadata: Metadata = {
-  title: "Ți-ai uitat parola? — Eterenuri",
+  title: "Ți-ai uitat parola? — Scorer",
 };
 
 export default function ParolaUitataPage() {
