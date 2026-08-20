@@ -47,7 +47,7 @@ export function DashboardShell({
       <aside className="sticky top-0 hidden h-screen w-[248px] shrink-0 flex-col border-r bg-background md:flex">
         <div className="flex h-16 items-center gap-2.5 border-b px-4">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground">
-            E
+            S
           </div>
           <div className="min-w-0 leading-tight">
             <p className="truncate text-[14px] font-semibold">Scorer</p>

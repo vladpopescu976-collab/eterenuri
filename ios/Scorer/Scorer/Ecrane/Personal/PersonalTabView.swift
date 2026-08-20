@@ -6,6 +6,9 @@ struct PersonalTabView: View {
     @State private var terenDebug: String? =
         ProcessInfo.processInfo.environment["SCORER_REZERVA"]
     @State private var terenIncarcat: Teren?
+    /// Deschide direct foaia de autentificare, pentru verificări automate.
+    @State private var arataAutentificarea =
+        ProcessInfo.processInfo.environment["SCORER_AUTENTIFICARE"] == "1"
     #endif
 
     var body: some View {
@@ -24,6 +27,7 @@ struct PersonalTabView: View {
             }
         }
         #if DEBUG
+        .sheet(isPresented: $arataAutentificarea) { AutentificareView() }
         .sheet(item: Binding(
             get: { terenIncarcat },
             set: { _ in terenIncarcat = nil }

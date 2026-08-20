@@ -2,6 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>CFBundleDisplayName</key>
+	<string>Scorer</string>
+	<key>CFBundleName</key>
+	<string>Scorer</string>
 	<!-- Adresa backendului.
 	     Simulator: 127.0.0.1 ajunge la Mac. NU folosi „localhost”: se rezolvă
 	     întâi la ::1, care în simulator e loopback-ul dispozitivului simulat,

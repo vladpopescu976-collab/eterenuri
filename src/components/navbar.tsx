@@ -98,7 +98,7 @@ export function Navbar() {
             transition={{ type: "spring", stiffness: 300, damping: 15 }}
             className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground"
           >
-            E
+            S
           </motion.span>
           <span className="text-lg font-semibold tracking-tight">Scorer</span>
         </Link>
