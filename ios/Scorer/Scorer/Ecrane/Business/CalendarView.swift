@@ -10,6 +10,7 @@ struct CalendarView: View {
     @State private var seIncarca = true
 
     @State private var terenAles: Teren?
+    @State private var sportAles: Sport?
     @State private var mod = Mod.zi
     @State private var ziAleasa = Calendar.current.startOfDay(for: Date())
     @State private var inceputSaptamana = CalendarView.startulSaptamanii(Date())
@@ -79,6 +80,12 @@ struct CalendarView: View {
             if ProcessInfo.processInfo.environment["SCORER_MOD"] == "saptamana" {
                 mod = .saptamana
             }
+            // Alege un sport („TENNIS”), ca să se poată verifica automat că
+            // lista de terenuri de dedesubt se restrânge.
+            if let text = ProcessInfo.processInfo.environment["SCORER_SPORT"],
+               let sport = Sport(rawValue: text) {
+                alegeSport(sport)
+            }
             #endif
         }
         .sheet(item: $evenimentAles) { eveniment in
@@ -103,17 +110,64 @@ struct CalendarView: View {
 
     // MARK: - Antet
 
+    /// Sporturile pe care proprietarul chiar le are, in ordinea obisnuita.
+    private var sporturiProprii: [Sport] {
+        let existente = Set(terenuri.map(\.sport))
+        return Sport.allCases.filter { existente.contains($0) }
+    }
+
+    private var terenuriFiltrate: [Teren] {
+        guard let sportAles else { return terenuri }
+        return terenuri.filter { $0.sport == sportAles }
+    }
+
+    /// Doua randuri, nu unul singur cu toate terenurile: cu douazeci de terenuri
+    /// lista devenea o banda lunga prin care trebuia cautat numele potrivit.
+    /// Intai sportul, apoi doar terenurile lui.
     private var selectorTeren: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(terenuri) { teren in
-                    PastilaFiltru(text: teren.nume, activ: terenAles?.id == teren.id) {
-                        withAnimation(.snappy) { terenAles = teren }
+        VStack(spacing: 8) {
+            if sporturiProprii.count > 1 {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        PastilaFiltru(text: "Toate sporturile", activ: sportAles == nil) {
+                            alegeSport(nil)
+                        }
+                        ForEach(sporturiProprii, id: \.self) { sport in
+                            PastilaFiltru(
+                                text: "\(sport.eticheta) (\(terenuri.filter { $0.sport == sport }.count))",
+                                activ: sportAles == sport
+                            ) { alegeSport(sport) }
+                        }
                     }
+                    .padding(.horizontal, 14)
                 }
             }
-            .padding(.horizontal, 14)
-            .padding(.bottom, 10)
+
+            if terenuriFiltrate.count > 1 {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(terenuriFiltrate) { teren in
+                            PastilaFiltru(text: teren.nume, activ: terenAles?.id == teren.id) {
+                                withAnimation(.snappy) { terenAles = teren }
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 14)
+                }
+            }
+        }
+        .padding(.bottom, 10)
+    }
+
+    /// La schimbarea sportului, terenul ales trebuie sa fie unul din sportul
+    /// acela — altfel calendarul ar arata in continuare un teren care nu mai e
+    /// in lista de dedesubt.
+    private func alegeSport(_ sport: Sport?) {
+        withAnimation(.snappy) {
+            sportAles = sport
+            if let sport, terenAles?.sport != sport {
+                terenAles = terenuri.first { $0.sport == sport }
+            }
         }
     }
 
