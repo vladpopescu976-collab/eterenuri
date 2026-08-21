@@ -17,7 +17,7 @@ export default async function BusinessBookingsPage() {
       include: { customer: { select: { name: true, phone: true } }, field: { select: { id: true, name: true } } },
       orderBy: { startTime: "desc" },
     }),
-    prisma.field.findMany({ where: { ownerId }, select: { id: true, name: true } }),
+    prisma.field.findMany({ where: { ownerId }, select: { id: true, name: true, sportType: true } }),
   ]);
 
   return (

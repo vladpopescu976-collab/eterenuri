@@ -13,7 +13,11 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { unblockSeries, unblockSlot } from "@/lib/actions/blocked-slots";
 import { toDateInput, toTimeInput } from "@/lib/datetime";
 import { sportMeta } from "@/lib/sports";
-import { cn } from "@/lib/utils";
+import {
+  filtreazaTerenuri,
+  SelectorSportTeren,
+  TOATE,
+} from "@/components/dashboard/selector-sport-teren";
 import type { BookingStatus, SportType } from "@prisma/client";
 
 const START_HOUR = 8;
@@ -98,8 +102,8 @@ export function ScheduleClient({
   // Filtrul are două trepte: întâi sportul, apoi terenul. Cu douăzeci de
   // terenuri, orarul desena douăzeci de coloane una lângă alta și trebuia
   // împins pe orizontală ca să ajungi la cel căutat.
-  const [sportAles, setSportAles] = useState<string | null>(null);
-  const [terenAles, setTerenAles] = useState<string | null>(null);
+  const [sportAles, setSportAles] = useState<string>(TOATE);
+  const [terenAles, setTerenAles] = useState<string>(TOATE);
 
   const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [selected, setSelected] = useState<Booking | null>(null);
@@ -123,24 +127,10 @@ export function ScheduleClient({
     [bookings, blockedSlots]
   );
 
-  /// Sporturile pe care proprietarul chiar le are, cu numărul de terenuri.
-  const sporturiProprii = useMemo(() => {
-    const numarate = new Map<string, number>();
-    for (const teren of toateTerenurile) {
-      numarate.set(teren.sportType, (numarate.get(teren.sportType) ?? 0) + 1);
-    }
-    return [...numarate.entries()];
-  }, [toateTerenurile]);
-
-  const terenuriDinSport = useMemo(
-    () => (sportAles ? toateTerenurile.filter((t) => t.sportType === sportAles) : toateTerenurile),
-    [toateTerenurile, sportAles]
-  );
-
-  // Ce se desenează efectiv în orar.
+  // Ce se desenează efectiv în orar, după alegerea din selectoare.
   const fields = useMemo(
-    () => (terenAles ? terenuriDinSport.filter((t) => t.id === terenAles) : terenuriDinSport),
-    [terenuriDinSport, terenAles]
+    () => filtreazaTerenuri(toateTerenurile, sportAles, terenAles),
+    [toateTerenurile, sportAles, terenAles]
   );
 
   const dayBookings = useMemo(
@@ -270,54 +260,13 @@ export function ScheduleClient({
         </div>
       </div>
 
-      {toateTerenurile.length > 1 && (
-        <div className="space-y-2">
-          {sporturiProprii.length > 1 && (
-            <div className="flex flex-wrap gap-1.5">
-              <ChipFiltru
-                activ={sportAles === null}
-                onClick={() => {
-                  setSportAles(null);
-                  setTerenAles(null);
-                }}
-              >
-                Toate sporturile
-              </ChipFiltru>
-              {sporturiProprii.map(([sport, numar]) => (
-                <ChipFiltru
-                  key={sport}
-                  activ={sportAles === sport}
-                  onClick={() => {
-                    setSportAles(sport);
-                    // Terenul ales aparținea altui sport, deci nu mai are ce căuta.
-                    setTerenAles(null);
-                  }}
-                >
-                  {sportMeta[sport as SportType]?.label ?? sport}
-                  <span className="ml-1 opacity-60">{numar}</span>
-                </ChipFiltru>
-              ))}
-            </div>
-          )}
-
-          {terenuriDinSport.length > 1 && (
-            <div className="flex flex-wrap gap-1.5">
-              <ChipFiltru activ={terenAles === null} onClick={() => setTerenAles(null)}>
-                Toate terenurile
-              </ChipFiltru>
-              {terenuriDinSport.map((teren) => (
-                <ChipFiltru
-                  key={teren.id}
-                  activ={terenAles === teren.id}
-                  onClick={() => setTerenAles(teren.id)}
-                >
-                  {teren.name}
-                </ChipFiltru>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+      <SelectorSportTeren
+        terenuri={toateTerenurile}
+        sportAles={sportAles}
+        terenAles={terenAles}
+        laSport={setSportAles}
+        laTeren={setTerenAles}
+      />
 
       {fields.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed py-16 text-center">
@@ -531,31 +480,5 @@ export function ScheduleClient({
         />
       )}
     </div>
-  );
-}
-
-function ChipFiltru({
-  activ,
-  onClick,
-  children,
-}: {
-  activ: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      aria-pressed={activ}
-      onClick={onClick}
-      className={cn(
-        "rounded-full border px-3 py-1.5 text-[12.5px] font-medium transition-colors",
-        activ
-          ? "border-primary bg-primary text-primary-foreground"
-          : "border-border text-muted-foreground hover:bg-muted hover:text-foreground"
-      )}
-    >
-      {children}
-    </button>
   );
 }

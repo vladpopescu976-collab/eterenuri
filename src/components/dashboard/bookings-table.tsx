@@ -7,6 +7,11 @@ import { toast } from "sonner";
 
 import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/dashboard/status-badge";
+import {
+  filtreazaTerenuri,
+  SelectorSportTeren,
+  TOATE,
+} from "@/components/dashboard/selector-sport-teren";
 import { RescheduleDialog } from "@/components/dashboard/reschedule-dialog";
 import { approveBooking, rejectBooking } from "@/lib/actions/business";
 import { bookingStatusLabel } from "@/lib/status";
@@ -32,24 +37,30 @@ function fmtTime(d: Date) {
   return d.toLocaleTimeString("ro-RO", { hour: "2-digit", minute: "2-digit" });
 }
 
-export function BookingsTable({ bookings, fields }: { bookings: Row[]; fields: { id: string; name: string }[] }) {
+export function BookingsTable({ bookings, fields }: { bookings: Row[]; fields: { id: string; name: string; sportType: string }[] }) {
   const [filter, setFilter] = useState<BookingStatus | "ALL">("ALL");
-  const [fieldFilter, setFieldFilter] = useState("ALL");
+  const [sportAles, setSportAles] = useState<string>(TOATE);
+  const [terenAles, setTerenAles] = useState<string>(TOATE);
   const [query, setQuery] = useState("");
   const [rescheduling, setRescheduling] = useState<Row | null>(null);
   const [isPending, startTransition] = useTransition();
   const [pendingId, setPendingId] = useState<string | null>(null);
 
+  const terenuriVizibile = useMemo(
+    () => new Set(filtreazaTerenuri(fields, sportAles, terenAles).map((t) => t.id)),
+    [fields, sportAles, terenAles]
+  );
+
   const filtered = useMemo(() => {
     return bookings
       .filter((b) => {
         if (filter !== "ALL" && b.status !== filter) return false;
-        if (fieldFilter !== "ALL" && b.field.id !== fieldFilter) return false;
+        if (!terenuriVizibile.has(b.field.id)) return false;
         if (query && !b.customer.name.toLowerCase().includes(query.toLowerCase())) return false;
         return true;
       })
       .sort((a, b) => b.startTime.getTime() - a.startTime.getTime());
-  }, [bookings, filter, fieldFilter, query]);
+  }, [bookings, filter, terenuriVizibile, query]);
 
   function handleApprove(id: string) {
     setPendingId(id);
@@ -109,19 +120,17 @@ export function BookingsTable({ bookings, fields }: { bookings: Row[]; fields: {
             {f === "ALL" ? "Toate" : bookingStatusLabel[f]}
           </button>
         ))}
-        <select
-          value={fieldFilter}
-          onChange={(e) => setFieldFilter(e.target.value)}
-          className="ml-auto rounded-lg border bg-background px-3 py-1.5 text-[12.5px] focus:border-primary focus:outline-none"
-        >
-          <option value="ALL">Toate terenurile</option>
-          {fields.map((f) => (
-            <option key={f.id} value={f.id}>
-              {f.name}
-            </option>
-          ))}
-        </select>
       </div>
+
+      {/* Aceeași alegere ca în orar: întâi sportul, apoi terenul. O listă cu
+          toate terenurile cerea citite douăzeci de nume ca să fie găsit unul. */}
+      <SelectorSportTeren
+        terenuri={fields}
+        sportAles={sportAles}
+        terenAles={terenAles}
+        laSport={setSportAles}
+        laTeren={setTerenAles}
+      />
 
       <div className="overflow-x-auto rounded-2xl border bg-background shadow-sm">
         <table className="w-full min-w-[760px] border-collapse text-left">
